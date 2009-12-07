@@ -1,3 +1,6 @@
+#ifndef PROXOS_GZIP_H
+#define PROXOS_GZIP_H
+
 #include <zlib.h>
 
 namespace
@@ -165,3 +168,5 @@ namespace
 		// commit the resulting buffer
 		return false;
 	}
+
+#endif

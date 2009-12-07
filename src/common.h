@@ -1,3 +1,6 @@
+#ifndef PROXOS_COMMON
+#define PROXOS_COMMON
+
 #include <cstddef>
 #include <cstdio>
 #include <cmath>
@@ -63,6 +66,7 @@
 #include <boost/algorithm/string.hpp>
 
 #include "gzip.h"
+#include "mysql/mysql.h"
 
 
 #define NEXTGEN_PLATFORM_DOS 0
@@ -320,7 +324,7 @@ std::cout << length << std::endl;
             return output;
         }
 
-        public: asio::streambuf& get_buffer()
+        public: asio::streambuf& get_buffer() const
         {
             auto self = *this;
 
@@ -815,8 +819,8 @@ std::cout << "Z" << std::endl;
                         {
                             auto self = *this;
 
-                            if(!self.is_open())
-                            {
+                            //if(!self.is_open())
+                            //{
                                 asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
 
                                 try
@@ -831,7 +835,7 @@ std::cout << "Z" << std::endl;
                                 {
                                     std::cout << "[nextgen:network:ip:transport:tcp:accepter] Failed to bind port " << port << "." << std::endl;
                                 }
-                            }
+                            //}
                         }
 
                         public: bool is_open()
@@ -841,24 +845,31 @@ std::cout << "Z" << std::endl;
                             return self->accepter_.is_open();
                         }
 
+                        public: port_type get_port() const
+                        {
+                            auto self = *this;
+
+                            return self->port;
+                        }
+
                         public: template<typename handler_type> void accept(socket_type& socket_, handler_type handler_)
                         {
                             auto self = *this;
 
-                            if(self.is_open())
-                            {
+                            //if(self.is_open())
+                            //{
                                 self->accepter_.async_accept(socket_, handler_);
-                            }
-                            else
-                            {
-                                asio::error_code ec = asio::error_code(asio::error::try_again);
-                                handler_(ec);
-                            }
+                            //}
+                            //else
+                            //{
+                            //    asio::error_code ec = asio::error_code(asio::error::try_again);
+                            //    handler_(ec);
+                            //}
                         }
 
                         private: struct variables
                         {
-                            variables(service_type service_) : accepter_(service_.get_service())
+                            variables(service_type service_) : port(0), accepter_(service_.get_service())
                             {
 
                             }
@@ -868,6 +879,7 @@ std::cout << "Z" << std::endl;
 
                             }
 
+                            port_type port;
                             accepter_type accepter_;
                         };
 
@@ -1064,12 +1076,12 @@ std::cout << "Z" << std::endl;
                                         if(self->timeout_ > 0)
                                             self.cancel_timer();
 
-                                        if(!self.is_connected())
-                                        {
-                                            failure_handler();
+                                        //if(!self.is_connected())
+                                        //{
+                                        //    failure_handler();
 
-                                            return;
-                                        }
+                                        //    return;
+                                        //}
 
                                         if(!error)
                                         {
@@ -1091,15 +1103,8 @@ std::cout << "Z" << std::endl;
                                     if(self->timeout_ > 0)
                                         self.cancel_timer();
 
-                                    if(error == asio::error::fd_set_failure)
-                                    {
-                                        std::cout << "<socket::connect handler> System Error: " << error.message() << std::endl;
-                                    }
-                                    else
-                                    {
-                                        if(DEBUG_MESSAGES4)
-                                            std::cout << "<socket::connect handler> Error: " << error.message() << std::endl;
-                                    }
+                                    if(DEBUG_MESSAGES4)
+                                        std::cout << "<socket::connect handler> Error: " << error.message() << std::endl;
 
                                     self.close();
 
@@ -1115,7 +1120,7 @@ std::cout << "Z" << std::endl;
                             self->timer_.cancel();
                         }
 
-                        public: template<typename stream_type> void send(stream_type& stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        public: template<typename stream_type> void send(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
                         {
                             auto self = *this;
 
@@ -1134,21 +1139,23 @@ std::cout << "Z" << std::endl;
                                 self->timer_.async_wait(self->cancel_handler_);
                             }
 
-                            asio::async_write(self->socket_, stream,
+                            asio::async_write(self->socket_, stream.get_buffer(),
                             [=](asio::error_code const& error, size_t& total)
                             {
+                                stream.get_buffer(); // bugfix(daemn)
+
                                 if(self->timeout_ > 0)
                                     self.cancel_timer();
 
-                                if(!self.is_connected())
-                                {
-                                    if(DEBUG_MESSAGES)
-                                        std::cout << "<socket::write handler> not connected (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                //if(!self.is_connected())
+                                //{
+                                //    if(DEBUG_MESSAGES)
+                                //        std::cout << "<socket::write handler> not connected (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
-                                    failure_handler();
-
-                                    return;
-                                }
+                                //    failure_handler();
+//
+                                //    return;
+                                //}
 
                                 if(DEBUG_MESSAGES)
                                     std::cout << "<socket::write handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
@@ -1169,7 +1176,7 @@ std::cout << "Z" << std::endl;
                             });
                         }
 
-                        public: template<typename delimiter_type, typename stream_type> void receive_until(delimiter_type const& delimiter, stream_type& stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
+                        public: template<typename delimiter_type, typename stream_type> void receive_until(delimiter_type const& delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
                         {
                             auto self2 = *this;
                             auto self = self2; // bugfix(daemn) weird lambda stack bug, would only accept PBR
@@ -1186,77 +1193,22 @@ std::cout << "Z" << std::endl;
                             if(DEBUG_MESSAGES)
                                 std::cout << "<socket::receive> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
-                            auto on_read = [=, &stream](asio::error_code const& error, uint32_t total)
+                            auto on_read = [=](asio::error_code const& error, uint32_t total)
                             {
+                                stream.get_buffer(); // bugfix(daemn)
+
                                 if(DEBUG_MESSAGES)
                                     std::cout << "<socket::receive handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                                 if(self->timeout_ > 0)
                                     self.cancel_timer();
 std::cout << "4" << std::endl;
-                                if(!self.is_connected())
-                                {
-                                    failure_handler();
+                                //if(!self.is_connected())
+                                //{
+                                //    failure_handler();
 
-                                    return;
-                                }
-std::cout << "3" << std::endl;
-                                if(!error)
-                                {
-                                        std::cout << "5" << std::endl;
-                                        successful_handler();
-                                }
-                                else
-                                {
-                                    if(DEBUG_MESSAGES4)
-                                        std::cout << "<socket::receive handler> Error: " << error.message() << std::endl;
-
-                                    self.close();
-
-                                    failure_handler();
-                                }
-                            };
-
-                            if(self->timeout_ > 0)
-                            {
-                                self->timer_.expires_from_now(boost::posix_time::seconds(5));
-                                self->timer_.async_wait(self->cancel_handler_);
-                            }
-
-                            asio::async_read_until(self.get_socket(), stream, delimiter, on_read);
-                        }
-
-                        public: template<typename delimiter_type, typename stream_type> void receive(delimiter_type delimiter, stream_type& stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
-                        {
-                            auto self2 = *this;
-                            auto self = self2; // bugfix(daemn) weird lambda stack bug, would only accept PBR
-
-                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!
-                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!
-
-                            if(successful_handler == 0)
-                                successful_handler = self->receive_successful_event;
-
-                            if(failure_handler == 0)
-                                failure_handler = self->receive_failure_event;
-
-                            if(DEBUG_MESSAGES)
-                                std::cout << "<socket::receive> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
-
-                            auto on_read = [=, &stream](asio::error_code const& error, uint32_t total)
-                            {
-                                if(DEBUG_MESSAGES)
-                                    std::cout << "<socket::receive handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
-
-                                if(self->timeout_ > 0)
-                                    self.cancel_timer();
-std::cout << "4" << std::endl;
-                                if(!self.is_connected())
-                                {
-                                    failure_handler();
-
-                                    return;
-                                }
+                                //    return;
+                                //}
 std::cout << "3" << std::endl;
                                 if(!error)
                                 {
@@ -1280,7 +1232,66 @@ std::cout << "3" << std::endl;
                                 self->timer_.async_wait(self->cancel_handler_);
                             }
 
-                            asio::async_read(self.get_socket(), stream, delimiter, on_read);
+                            asio::async_read_until(self.get_socket(), stream.get_buffer(), delimiter, on_read);
+                        }
+
+                        public: template<typename delimiter_type, typename stream_type> void receive(delimiter_type delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
+                        {
+                            auto self2 = *this;
+                            auto self = self2; // bugfix(daemn) weird lambda stack bug, would only accept PBR
+
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!
+
+                            if(successful_handler == 0)
+                                successful_handler = self->receive_successful_event;
+
+                            if(failure_handler == 0)
+                                failure_handler = self->receive_failure_event;
+
+                            if(DEBUG_MESSAGES)
+                                std::cout << "<socket::receive> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+
+                            auto on_read = [=](asio::error_code const& error, uint32_t total)
+                            {
+                                stream.get_buffer(); // bugfix(daemn)
+
+                                if(DEBUG_MESSAGES)
+                                    std::cout << "<socket::receive handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+
+                                if(self->timeout_ > 0)
+                                    self.cancel_timer();
+std::cout << "4" << std::endl;
+                                //if(!self.is_connected())
+                                //{
+                                //    failure_handler();
+
+                                //    return;
+                                //}
+std::cout << "3" << std::endl;
+                                if(!error)
+                                {
+                                        std::cout << "5" << std::endl;
+                                        successful_handler();
+                                }
+                                else
+                                {
+                                    if(DEBUG_MESSAGES4)
+                                        std::cout << "<socket::receive handler> Error: " << error.message() << std::endl;
+
+                                    self.close();
+
+                                    successful_handler();
+                                }
+                            };
+
+                            if(self->timeout_ > 0)
+                            {
+                                self->timer_.expires_from_now(boost::posix_time::seconds(5));
+                                self->timer_.async_wait(self->cancel_handler_);
+                            }
+
+                            asio::async_read(self.get_socket(), stream.get_buffer(), delimiter, on_read);
                         }
 
                         public: virtual void accept(port_type port_, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0) const
@@ -1301,7 +1312,7 @@ std::cout << "3" << std::endl;
 
                             this_type client(self.get_service());
 
-                            if(!self->accepter_.is_open())
+                            if(!self->accepter_.get_port() != port_)
                                 self->accepter_.open(port_);
 
                             self->accepter_.accept(client.get_socket(), [=](asio::error_code const& error)
@@ -1348,7 +1359,7 @@ std::cout << "3" << std::endl;
 
                         private: struct variables
                         {
-                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(180)
+                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(100)
                             {
 
                             }
@@ -1376,6 +1387,7 @@ std::cout << "3" << std::endl;
                             network_layer_type network_layer_;
                             timeout_type timeout_;
                             cancel_handler_type cancel_handler_;
+
                         };
 
                         NEXTGEN_SHARED_DATA(layer, variables,
@@ -1499,9 +1511,15 @@ std::cout << "3" << std::endl;
 
                                 }
 
+                                auto header_list = self->header_list;
+                                string raw_header_list = "";
+                                string content = self->content;
+
+                                header_list_type::iterator i, l;
+
                                 data_stream << self->method + " " + self->url + " " + "HTTP" + "/" + self->version + "\r\n";
 
-                                if(self->header_list.empty() && self->raw_header_list.length())
+                                if(header_list.empty())
                                 // turn raw header string into a header list
                                 {
 
@@ -1509,76 +1527,89 @@ std::cout << "3" << std::endl;
                                 else
                                 // header list already exists
                                 {
+
+                                    bool content_length_exists;
+
+                                    if(header_list.find("Content-Length") != header_list.end())
+                                        content_length_exists = true;
+                                    else
+                                        content_length_exists = false;
+
+
                                     if(self->username.length() && self->password.length())
                                     // add authentication into header list
                                     {
-                                        if(self->header_list.find("Proxy-Authorization") != self->header_list.end())
+                                        if(header_list.find("Proxy-Authorization") != header_list.end())
                                         // authentication header doesn't already exist
                                         {
                                             //self->header_list["Proxy-Authorization"] = "Basic " << base64encode(ps->username + ":" + ps->password);
                                         }
                                     }
 
-                                    header_list_type::iterator i, l;
-
-                                    if((i = self->header_list.find("Host")) != self->header_list.end())
+                                    if((i = header_list.find("Host")) != header_list.end())
                                     {
-                                        self->raw_header_list = (*i).first + ": " + (*i).second  + "\r\n" + self->raw_header_list;
+                                        raw_header_list = (*i).first + ": " + (*i).second  + "\r\n" + raw_header_list;
 
-                                        self->header_list.erase(i);
+                                        header_list.erase(i);
                                     }
 
-                                    if((i = self->header_list.find("User-Agent")) != self->header_list.end())
+                                    if((i = header_list.find("User-Agent")) != header_list.end())
                                     {
-                                        self->raw_header_list += (*i).first + ": " + (*i).second  + "\r\n";
+                                        raw_header_list += (*i).first + ": " + (*i).second  + "\r\n";
 
                                         // we're at the user agent header, so let's tell them what encoding our agent accepts
-                                        self->raw_header_list += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" "\r\n";
-                                        self->raw_header_list += "Accept-Language: en-us,en;q=0.5" "\r\n";
-                                        self->raw_header_list += "Accept-Encoding: gzip,deflate" "\r\n";
-                                        self->raw_header_list += "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7" "\r\n";
+                                        raw_header_list += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" "\r\n";
+                                        raw_header_list += "Accept-Language: en-us,en;q=0.5" "\r\n";
+                                        raw_header_list += "Accept-Encoding: gzip,deflate" "\r\n";
+                                        raw_header_list += "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7" "\r\n";
 
-                                        self->header_list.erase(i);
+                                        header_list.erase(i);
                                     }
 
-                                    if((i = self->header_list.find("Connection")) != self->header_list.end())
+                                    if((i = header_list.find("Connection")) != header_list.end())
                                     {
-                                        self->raw_header_list += (*i).first + ": " + (*i).second  + "\r\n";
+                                        raw_header_list += (*i).first + ": " + (*i).second  + "\r\n";
 
-                                        self->header_list.erase(i);
+                                        header_list.erase(i);
                                     }
 
                                     // turn header list into raw header string
-                                    for(i = self->header_list.begin(), l = self->header_list.end(); i != l; ++i)
+                                    for(i = header_list.begin(), l = header_list.end(); i != l; ++i)
                                     {
                                         auto header_title = (*i).first;
                                         auto header_value = (*i).second;
 
-                                        self->raw_header_list += header_title + ": " + header_value + "\r\n";
+                                        raw_header_list += header_title + ": " + header_value + "\r\n";
                                     }
+
+                                    if(self->method == "POST" && !content_length_exists)
+                                    // user didn't specify a content length, so we'll count it for them
+                                        raw_header_list += "Content-Length: " + to_string(content.length()) + "\r\n";
                                 }
 
                                 if(DEBUG_MESSAGES4)
-                                    std::cout << self->raw_header_list << std::endl;
+                                    std::cout << raw_header_list << std::endl;
 
                                 if(DEBUG_MESSAGES4)
-                                    std::cout << self->content << std::endl;
+                                    std::cout << content << std::endl;
 
-                                data_stream << self->raw_header_list + "\r\n";
-                                data_stream << self->content;
+                                data_stream << raw_header_list + "\r\n";
+                                data_stream << content;
                             }
                         }
 
                         public: void unpack_headers() const
                         {
                             auto self = *this;
+std::cout << "XXXXXX" << self->stream.get_buffer().in_avail() << std::endl;
 
                             if(self->stream.get_buffer().in_avail())
                             {
                                 std::istream data_stream(&self->stream.get_buffer());
 
-                                //string line;
-                                //std::getline(data_stream, line);
+                                string line;
+                                std::getline(data_stream, line);
+std::cout << "UNPACKING: " << line << std::endl;
                                 string data((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
                                 size_t header_end = data.find("\r\n\r\n");
@@ -1590,6 +1621,7 @@ std::cout << "3" << std::endl;
                                     boost::erase_head(data, header_end + 4);
                                 }
 
+std::cout << "GARRRRR" << self->raw_header_list << std::endl;
                                 boost::regex_error paren(boost::regex_constants::error_paren);
 
                                 try
@@ -1597,15 +1629,33 @@ std::cout << "3" << std::endl;
                                     boost::match_results<std::string::const_iterator> what;
                                     boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
 
-                                    string::const_iterator start = self->raw_header_list.begin();
-                                    string::const_iterator end = self->raw_header_list.end();
+                                    string::const_iterator start = line.begin();
+                                    string::const_iterator end = line.end();
 
-                                    if(boost::regex_search(start, end, what, boost::regex("(.+?)\\/(.+?) (.+?) (.+?)\\\r\\\n"), flags))
+
+                                    // todo(daemn) fix line bug
+                                    if(boost::regex_search(start, end, what, boost::regex("^HTTP\\/(.+?) ([0-9]+) (.+?)\r"), flags))
                                     {
-                                        std::cout << "ZZZZZZZZZZ" << what[1] << what[2] << what[3] << what[4] << std::endl;
-                                        self->version = what[2];
-                                        self->status_code = to_int(what[3]);
-                                        self->status_description = what[4];
+                                        std::cout << "ZZZZZZZZZZ" << what[1] << what[2] << what[3] << std::endl;
+                                        self->version = what[1];
+                                        self->status_code = to_int(what[2]);
+                                        self->status_description = what[3];
+                                    }
+                                    else
+                                    {
+                                        if(boost::regex_search(start, end, what, boost::regex("^(.+?) (.+?) HTTP\\/(.+?)\r"), flags))
+                                        {
+                                            std::cout << "YYYYYYYY " << what[1] << what[2] << what[3] << std::endl;
+                                            self->method = what[1];
+                                            self->path = what[2];
+                                            self->version = what[3];
+                                        }
+                                        else
+                                        {
+                                            std::cout << "Error unpacking HTTP header." << std::endl;
+
+                                            //return; //exit(0); // temp(daemn)
+                                        }
                                     }
                                 }
                                 catch(boost::regex_error const& e)
@@ -1613,11 +1663,9 @@ std::cout << "3" << std::endl;
                                     std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
                                 }
 
-
-
                                 self->content = data;
 
-
+                                self->header_list.clear();
 
                                 try
                                 {
@@ -1648,8 +1696,18 @@ std::cout << "3" << std::endl;
                                     std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
                                 }
 
-                                // look for content-length and set-cookie and content-type
+                                if(self->status_code != 0)
+                                // we're unpacking response headers
+                                {
 
+
+                                    // todo(daemn) look for content-length and set-cookie and content-type
+                                }
+                                else
+                                // we're unpacking request headers
+                                {
+
+                                }
                             }
                         }
 
@@ -1716,6 +1774,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             status_description_type status_description;
                             id_type id;
                             method_type method;
+                            string path;
                             version_type version;
                             network_layer_type address;
                             port_type port;
@@ -1773,7 +1832,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                             request_.pack();
 
-                            self.send(request_->stream.get_buffer(), successful_handler, failure_handler);
+                            self.send(request_->stream, successful_handler, failure_handler);
                         }
 
                         public: virtual void send_and_receive(message_type request_, receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
@@ -1788,9 +1847,11 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                             request_.pack();
 
-                            self.send(request_->stream.get_buffer(),
+                            self.send(request_->stream,
                             [=]()
                             {
+                                request_->stream.get_buffer(); // bugfix(daemn)
+
                                 std::cout << "http message sent, now receiving" << std::endl;
 
                                 self.receive(successful_handler, failure_handler);
@@ -1801,7 +1862,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             });
                         }
 
-                        public: template<typename stream_type> void send(stream_type& stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        public: template<typename stream_type> void send(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
                         {
                             auto self = *this;
 
@@ -1835,28 +1896,59 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             message_type response2;
                             auto response = response2; // bugfix(daemn)
 
-                            self->transport_layer_.receive_until("\r\n\r\n", response->stream.get_buffer(),
+                            self->transport_layer_.receive_until("\r\n\r\n", response->stream,
                             [=]()
                             {
                                 response.unpack_headers();
 
-                                if(response->header_list.find("Content-Length") != response->header_list.end())
+
+                                std::cout << "Z: " << response->raw_header_list << std::endl;
+
+                                if(response->stream.get_buffer().in_avail())
                                 {
-                                    auto content_length = to_int(response->header_list["Content-Length"]) - response->content.length();
+                                    response.unpack_content();
+                                std::cout << "Y: " << response->content << std::endl;
+                                }
 
-std::cout << "trying to receive length = " << content_length << std::endl;
-
-                                    self->transport_layer_.receive(asio::transfer_at_least(content_length), response->stream.get_buffer(),
-                                    [=]()
+                                if(response->status_code != 0 || response->method == "POST")
+                                // this http message has content, and we need to know the length
+                                {
+                                    if(response->header_list.find("Content-Length") != response->header_list.end())
                                     {
-                                        response.unpack_content();
+                                        auto content_length = to_int(response->header_list["Content-Length"]) - response->content.length();
 
-                                        successful_handler(response);
-                                    });
+    std::cout << "trying to receive length = " << content_length << std::endl;
+
+                                        self->transport_layer_.receive(asio::transfer_at_least(content_length), response->stream,
+                                        [=]()
+                                        {
+                                            response.unpack_content();
+
+                                            successful_handler(response);
+                                        },
+                                        [=]()
+                                        {
+                                            std::cout << "failed to receive rest of length" << std::endl;
+
+                                            failure_handler();
+                                        });
+                                    }
+                                    else
+                                    {
+                                        std::cout << "No http content-length specified" << std::endl;
+
+                                        failure_handler();
+                                    }
                                 }
                                 else
+                                // this http message just contains raw headers
                                 {
-                                    std::cout << "No http content-length specified" << std::endl;
+
+
+                                    if(response->raw_header_list.length() > 0)
+                                        successful_handler(response);
+                                    else
+                                        failure_handler();
                                 }
 
 
@@ -1917,7 +2009,7 @@ std::cout << "trying to receive length = " << content_length << std::endl;
                             event<connection_failure_event_type> connection_failure_event;
                             event<accept_failure_event_type> accept_failure_event;
                             event<accept_successful_event_type> accept_successful_event;
-
+                            timer counter;
                             transport_layer_type transport_layer_;
                         };
 
@@ -2576,3 +2668,295 @@ namespace nextgen
 
 
 
+namespace nextgen
+{
+    string regex_single_match(string const& pattern, string const& subject)
+    {
+
+        boost::regex_error paren(boost::regex_constants::error_paren);
+
+        try
+        {
+            boost::match_results<std::string::const_iterator> what;
+            boost::regex_constants::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+            if(boost::regex_search((std::string::const_iterator)subject.begin(), (std::string::const_iterator)subject.end(), what, boost::regex(pattern), flags))
+                return what[1];
+        }
+        catch(boost::regex_error const& e)
+        {
+            std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+        }
+
+        return "Null";
+    }
+}
+
+namespace nextgen
+{
+    namespace database
+    {
+        typedef boost::shared_ptr<hash_map<std::string, std::string>> row;
+        typedef boost::shared_ptr<std::vector<row>> row_list;
+
+        class link
+        {
+            public: typedef row row_type;
+            public: typedef row_list row_list_type;
+
+            public: void connect(string const& host, string const& username, string const& password, string const& database = "")
+            {
+                auto self = *this;
+
+                if(self->connected != "null" && self->connected != database)
+                    self.disconnect();
+
+                self->link = mysql_init(NULL);
+
+                if(!self->link)
+                {
+                    std::cout << "[nextgen:database:link] MySQL init error" << std::endl;
+
+                    return;
+                }
+
+                // Connect to MySQL.
+                if(mysql_real_connect(self->link, host.c_str(), username.c_str(), password.c_str(), database.c_str(), 0, NULL, 0) == NULL)
+                {
+                    std::cout << "<Database> Error connecting to " << database.c_str() << "." << std::endl;
+
+                    std::cout << "<MySQL> " << mysql_error(NULL) << std::endl;
+
+                    mysql_close(self->link);
+                    mysql_library_end();
+
+                    return;
+                }
+
+                self->connected = database;
+            }
+
+            public: void disconnect()
+            {
+                auto self = *this;
+
+                mysql_close(self->link);
+
+                self->link = (MYSQL*)NULL;
+
+                self->connected = "null";
+            }
+
+
+            public: void query(nextgen::string const& query)
+            {
+                auto self = *this;
+
+                if(self->connected == "null")
+                {
+                    std::cout << "<Database> Not connected." << std::endl;
+
+                    return;
+                }
+
+
+                MYSQL_RES *result;
+                MYSQL_ROW row;
+                //std::cout << "c" << std::endl;
+                int status = mysql_query(self->link, query.c_str());
+
+                if(status)
+                {
+                    printf("Could not execute statement(s)");
+                    printf(mysql_error(self->link));
+                    mysql_close(self->link);
+                }
+
+                MYSQL_FIELD *field;
+                unsigned int num_fields;
+                unsigned int i;
+                unsigned long *lengths;
+
+                std::vector<std::string> fields;
+
+                /* process each statement result */
+                do
+                {
+                    /* did current statement return data? */
+                    result = mysql_store_result(self->link);
+
+                    if(result)
+                    {
+                        /* yes; process rows and free the result set */
+                        //process_result_set(mysql, result);
+
+                        num_fields = mysql_num_fields(result);
+
+                        for(i = 0; i < num_fields; i++)
+                        {
+                            field = mysql_fetch_field(result);
+                            fields.push_back(field->name);
+                        }
+
+                        while(row = mysql_fetch_row(result))
+                        {
+                           lengths = mysql_fetch_lengths(result);
+
+                           //NextGen::Framework::Database::Row hash;
+
+                           for(i = 0; i < num_fields; i++)
+                           {
+                               //hash[fields[i]] = row[i];
+                               //std::cout << fields[i] << ": " << row[i] << std::endl;
+                           }
+                        }
+
+                        mysql_free_result(result);
+                    }
+                    else          /* no result set or error */
+                    {
+                        if(mysql_field_count(self->link) == 0)
+                        {
+
+                            //printf("%lld rows affected\n",
+                            //mysql_affected_rows(this->link));
+                        }
+                        else  /* some error occurred */
+                        {
+                            printf("Could not retrieve result set\n");
+
+                            break;
+                        }
+                    }
+
+                    /* more results? -1 = no, >0 = error, 0 = yes (keep looping) */
+                    if((status = mysql_next_result(self->link)) > 0)
+                        printf("Could not execute statement\n");
+
+                } while (status == 0);
+
+                //boost::this_thread::sleep(boost::posix_time::milliseconds(15));
+            }
+
+
+            public: row_list_type get_row_list(string const& query)
+            {
+                auto self = *this;
+
+                row_list_type list(new row_list_type::element_type);
+
+                if(self->connected == "null")
+                {
+                    std::cout << "<Database> Not connected." << std::endl;
+
+                    return list;
+                }
+
+                MYSQL_RES* result;
+                MYSQL_ROW row;
+                //std::cout << "a" << std::endl;
+                int status = mysql_query(self->link, query.c_str());
+                //std::cout << "1" << std::endl;
+                if(status)
+                {
+                    printf("Could not execute statement(s)");
+                    printf(mysql_error(self->link));
+                    mysql_close(self->link);
+                    return list;
+                }
+            //std::cout << "2" << std::endl;
+                MYSQL_FIELD *field;
+                unsigned int num_fields;
+                unsigned int i;
+                unsigned long *lengths;
+
+                std::vector<std::string> fields;
+
+                do
+                {
+                    result = mysql_store_result(self->link);
+            //std::cout << "3" << std::endl;
+                    if(result)
+                    {
+                        //process_result_set(mysql, result);
+
+                        num_fields = mysql_num_fields(result);
+
+                        for(i = 0; i < num_fields; i++)
+                        {
+                            field = mysql_fetch_field(result);
+                            fields.push_back(field->name);
+                        }
+
+                        while(row = mysql_fetch_row(result))
+                        {
+                           lengths = mysql_fetch_lengths(result);
+
+                           row_type hash(new row_type::element_type);
+
+                           for(i = 0; i < num_fields; i++)
+                           {
+                               if(row[i])
+                               {
+                                    (*hash.get())[fields[i]] = row[i];
+                                    //std::cout << fields[i] << ": " << row[i] << std::endl;
+                               }
+                               else
+                               {
+                                    (*hash.get())[fields[i]] = "NULL";
+                                    //std::cout << fields[i] << ": " << "NULL" << std::endl;
+                               }
+                           }
+            //std::cout << "4" << std::endl;
+                           list->push_back(hash);
+                        }
+
+                        mysql_free_result(result);
+                    }
+                    else
+                    {
+                        //std::cout << "5" << std::endl;
+                        if(mysql_field_count(self->link) == 0)
+                        {
+                            printf("%lld rows affected\n",
+                            mysql_affected_rows(self->link));
+                        }
+                        else
+                        {
+                            printf("Could not retrieve result set\n");
+
+                            break;
+                        }
+                    }
+
+                    if((status = mysql_next_result(self->link)) > 0)
+                        printf("Could not execute statement\n");
+            //std::cout << "6" << std::endl;
+                } while (status == 0);
+
+                return list;
+            }
+
+            private: struct variables
+            {
+                variables() : connected("null")
+                {
+
+                }
+
+                ~variables()
+                {
+
+                }
+
+
+                MYSQL* link;
+                string connected;
+            };
+
+            NEXTGEN_SHARED_DATA(link, variables);
+        };
+    }
+}
+
+#endif
