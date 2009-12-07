@@ -1,0 +1,26 @@
+== Proxos Readme
+
+== License
+Proxos is released under the MIT license. A copy of the MIT license can be found in the LICENSE file.
+
+
+== Server
+The mainline has been compiled/tested with:
+Compiler: GCC 4.5
+Platform: Ubuntu 9.1 with Code::Blocks 8.02
+Libraries: Boost 1.40, Asio 1.4.1
+
+== Templates
+
+
+== Code Formatting
+
+
+== Return Values
+
+
+== Profiling
+
+
+
+
