@@ -53,7 +53,6 @@
 		</Linker>
 		<Unit filename="../../src/common.h" />
 		<Unit filename="../../src/gzip.h" />
-		<Unit filename="../../src/main.h" />
 		<Unit filename="../../src/port_scanner.h" />
 		<Unit filename="../../src/proxy_checker.cpp" />
 		<Unit filename="../../src/proxy_checker.h" />

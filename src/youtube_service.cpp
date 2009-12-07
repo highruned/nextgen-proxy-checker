@@ -1,4 +1,4 @@
-#define FD_SETSIZE 8192//4096
+#define FD_SETSIZE 65535//4096
 
 #include "common.h"
 #include "proxy_checker.h"
@@ -20,7 +20,7 @@ namespace proxos
 
         private: struct variables
         {
-            variables()// : world(network_service, content_service)
+            variables()
             {
 
             }
@@ -31,7 +31,6 @@ namespace proxos
             }
 
             network_service_type network_service;
-            //nextgen::content::service content_service;
         };
 
         NEXTGEN_SHARED_DATA(application, variables);
@@ -65,8 +64,6 @@ void proxos::application::run()
 
                 std::cout << "[proxos:application:run] Updating services..." << std::endl;
             }
-
-            proxy_checker.update();
 
             self->network_service.update();
 
