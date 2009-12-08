@@ -46,6 +46,21 @@ void proxos::application::run()
 
     proxos::proxy_checker proxy_checker("www.proxyprobe.com", 8080, self->network_service, proxy_database);
 
+    {
+        std::string query("SELECT proxy_host, proxy_port, proxy_id FROM proxies WHERE proxy_last_checked < (NOW() - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(self->proxy_row_start) + ", " + to_string(self->proxy_row_end)); //ORDER BY proxy_rating DESC
+
+        std::cout << query << std::endl;
+
+        auto list = proxy_database.get_row_list(query);
+
+        std::for_each(list.begin(), list.end(), [=](nextgen::database::row row)
+        {
+            proxy_checker.add_proxy(proxos::proxy(row));
+        });
+
+        //proxy_checker.add_list(); //proxy_rating DESC, proxy_hits DESC, proxy_latency ASC,
+    }
+
     nextgen::timer timer;
     timer.start();
 

@@ -111,12 +111,14 @@ namespace proxos
 
         private: struct variables
         {
-            variables()
+
+
+            variables(nextgen::database::row row)
             {
-                variables("undefined.com", 0);
+                variables((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
             }
 
-            variables(host_type const& host, port_type port) : host(host), port(port), id(0), type(""), latency(0.0)
+            variables(host_type const& host = "undefined.com", port_type port = 0, id_type id = 0, type_type const& type = "", latency_type latency = 0) : host(host), port(port), id(id), type(""), latency(0.0)
             {
 
             }
@@ -137,47 +139,49 @@ namespace proxos
         NEXTGEN_SHARED_DATA(proxy, variables);
 	};
 
+}
+
+
+namespace nextgen
+{
+    namespace network
+    {
+
+
+    }
+
+}
+
+
+namespace proxos
+{
 
     class proxy_checker
     {
-        public: typedef std::list<nextgen::network::http_client> client_list_type;
-        public: typedef nextgen::hash_map<nextgen::uint32_t, proxos::proxy> proxy_list_type;
-        public: typedef nextgen::database::row_list proxy_row_list_type;
+        public: typedef proxos::proxy proxy_type;
+        public: typedef nextgen::hash_map<nextgen::uint32_t, proxy_type> proxy_list_type;
         public: typedef nextgen::network::service network_service_type;
-        public: typedef nextgen::uint32_t proxy_row_start_type;
-        public: typedef nextgen::uint32_t proxy_row_end_type;
-        public: typedef proxy_row_list_type::value_type::iterator proxy_row_iter_type;
         public: typedef nextgen::uint32_t client_max_type;
         public: typedef nextgen::timer timer_type;
-        public: typedef proxos::proxy proxy_type;
 
-        public: client_list_type& get_client_list() const
+
+        public: void add_proxy(proxy_type proxy)
         {
-            auto self = *this;
-
-            return self->client_list;
+            self->proxy_list[proxy.get_id()] = proxy;
         }
 
-        public: proxy_list_type& get_proxy_list() const
+        public: proxy_type get_proxy(nextgen::uint32_t id)
         {
-            auto self = *this;
-
-            return self->proxy_list;
+            return self->proxy_list[id];
         }
 
         public: void initialize()
         {
             auto self = *this;
 
-            std::string query("SELECT proxy_host, proxy_port, proxy_id FROM proxies WHERE proxy_last_checked < (NOW() - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(self->proxy_row_start) + ", " + to_string(self->proxy_row_end)); //ORDER BY proxy_rating DESC
+            self->server = nextgen::network::http_server(self->network_service, self->port);
 
-            std::cout << query << std::endl;
-
-            self->proxy_row_list = self->database_link.get_row_list(query); //proxy_rating DESC, proxy_hits DESC, proxy_latency ASC,
-            self->proxy_row_iter = self->proxy_row_list->begin();
-
-            nextgen::network::create_server<nextgen::network::http_client>(self->network_service, self->port,
-            [=](nextgen::network::http_client client)
+            self->server.accept([=](nextgen::network::http_client client)
             {
                 std::cout << "[proxos:proxy_server] Proxy server (port 8080) accepted HTTP client." << std::endl;
 
@@ -192,11 +196,12 @@ namespace proxos
                     // proxy can send headers
                     if(r1->header_list.find("PID") != r1->header_list.end())
                     {
-                        auto proxy = self->proxy_list[to_int(r1->header_list["PID"])];
+                        auto proxy = self.get_proxy(to_int(r1->header_list["PID"]));
 
                         std::string type;
 
-                        if(r1->raw_header_list.find("127.0.0.1") != std::string::npos)
+                        if(r1->raw_header_list.find("127.0.0.1") != std::string::npos
+                            || r1->raw_header_list.find("174.1.157.98") != std::string::npos)
                             type = "transparent";
                         else if(r1->header_list.find("Via") != r1->header_list.end()
                             || r1->header_list.find("X-Forwarded-For") != r1->header_list.end()
@@ -210,10 +215,8 @@ namespace proxos
 
                         nextgen::network::http_message r2;
 
-                        //r2->raw_header_list = "Content-Type: text/html\r\nProxy-Connection:close\r\nConnection: close\r\nServer: Proxos\r\nPID: " + response->header_list["PID"] + "\r\n";
                         r2->version = "1.1";
                         r2->status_code = 200;
-                        r2->status_description = "OK";
                         r2->header_list["Content-Type"] = "text/html";
                         r2->header_list["Proxy-Connection"] = "close";
                         r2->header_list["Connection"] = "close";
@@ -243,7 +246,11 @@ namespace proxos
                             proxy.set_type("broken");
                         });
                     }
-
+                    else
+                    // this request didn't come from checker, or has been modified
+                    {
+                        client.disconnect();
+                    }
                 },
                 []()
                 {
@@ -253,35 +260,6 @@ namespace proxos
             });
         }
 
-        private: void clean()
-        {
-            auto self = *this;
-
-            if(self->timer.stop() > 5.0f)
-            {
-                std::cout << "[proxos:proxy_checker] Cleaning out expired clients.";
-
-                for(client_list_type::iterator i = self->client_list.begin(), l = self->client_list.end(); i != l;)
-                {
-                    if((*i)->counter.stop() > 240.0f)
-                    {
-                        client_list_type::iterator j = i; ++j;
-
-                        std::cout << ".";
-
-                        (*i)->transport_layer_.cancel(); //self->socket_list.erase(i);
-
-                        ++i; //i = j;
-                    }
-                    else
-                        ++i;
-                }
-
-                std::cout << std::endl;
-
-                self->timer.start();
-            }
-        }
 
         public: void remove_client(nextgen::network::http_client client) const
         {
@@ -344,29 +322,24 @@ namespace proxos
 
                     self->proxy_row_iter = self->proxy_row_list->begin();
                 }
+                else if(self->proxy_row_list->size() == 0)
+                {
+                    std::cout << "[proxos:proxy_checker] No more proxies." << std::endl;
+
+                    self->proxy_row_start = 0;
+
+                    return;
+                }
                 else
                 {
-                    if(self->proxy_row_list->size() == 0)
-                    {
-                        std::cout << "[proxos:proxy_checker] No more proxies." << std::endl;
-
-                        self->proxy_row_start = 0;
-
-                        return;
-                    }
-
                     ++self->proxy_row_iter;
                 }
 
-                proxy_type proxy;
 
-                proxy.from_row((*self->proxy_row_iter));
-
-                self->proxy_list[proxy.get_id()] = proxy;
 
                 client_type client(self->network_service);
 
-                self->client_list.push_back(client);
+                //self->client_list.push_back(client);
 
                 if(DEBUG_MESSAGES)
                     std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy.get_host() << ":" << proxy.get_port() << " (" << proxy.get_id() << ")" << std::endl;
@@ -547,7 +520,7 @@ namespace proxos
 
         private: struct variables
         {
-            variables(std::string const& host, uint32_t port, network_service_type network_service, nextgen::database::link database_link) : host(host), port(port), network_service(network_service), database_link(database_link), proxy_row_start(0), proxy_row_end(1000), client_max(1000)
+            variables(std::string const& host, uint32_t port, network_service_type network_service, nextgen::database::link database_link) : host(host), port(port), network_service(network_service), database_link(database_link), proxy_row_start(0), proxy_row_end(1000), client_max(850)
             {
 
             }

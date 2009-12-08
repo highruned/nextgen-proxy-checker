@@ -819,23 +819,24 @@ std::cout << "Z" << std::endl;
                         {
                             auto self = *this;
 
-                            //if(!self.is_open())
-                            //{
-                                asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
+                            asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
 
-                                try
-                                {
-                                    self->accepter_.open(endpoint.protocol());
-                                    self->accepter_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+                            try
+                            {
+                                self->accepter_.open(endpoint.protocol());
+                                self->accepter_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
 
-                                    self->accepter_.bind(endpoint);
-                                    self->accepter_.listen();
-                                }
-                                catch(std::exception& e)
-                                {
-                                    std::cout << "[nextgen:network:ip:transport:tcp:accepter] Failed to bind port " << port << "." << std::endl;
-                                }
-                            //}
+                                self->accepter_.bind(endpoint);
+                                self->accepter_.listen();
+
+                                // successfully binded port
+                                std::cout << "[nextgen:network:ip:transport:tcp:accepter] Successfully binded port " << port << "." << std::endl;
+                                self->port = port;
+                            }
+                            catch(std::exception& e)
+                            {
+                                std::cout << "[nextgen:network:ip:transport:tcp:accepter] Failed to bind port " << port << "." << std::endl;
+                            }
                         }
 
                         public: bool is_open()
@@ -914,6 +915,7 @@ std::cout << "Z" << std::endl;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
 
+
                         public: virtual void initialize()
                         {
                             auto self = *this;
@@ -973,6 +975,10 @@ std::cout << "Z" << std::endl;
 
                             return self->socket_.is_open();
                         }
+
+
+
+
 
                         public: virtual void cancel() const
                         {
@@ -1222,7 +1228,7 @@ std::cout << "3" << std::endl;
 
                                     self.close();
 
-                                    successful_handler();
+                                    failure_handler();
                                 }
                             };
 
@@ -1281,7 +1287,7 @@ std::cout << "3" << std::endl;
 
                                     self.close();
 
-                                    successful_handler();
+                                    failure_handler();
                                 }
                             };
 
@@ -1312,7 +1318,7 @@ std::cout << "3" << std::endl;
 
                             this_type client(self.get_service());
 
-                            if(!self->accepter_.get_port() != port_)
+                            if(self->accepter_->port != port_)
                                 self->accepter_.open(port_);
 
                             self->accepter_.accept(client.get_socket(), [=](asio::error_code const& error)
@@ -1359,7 +1365,7 @@ std::cout << "3" << std::endl;
 
                         private: struct variables
                         {
-                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(100)
+                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(100), keep_alive_threshold(0)
                             {
 
                             }
@@ -1744,7 +1750,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                             if(buffer.size() > 0)
                                                 self->content = &buffer[0];
                                             else
-                                                throw std::string("No content after uncompression");
+                                                std::cout << "No content after uncompression" << std::endl;
                                         }
                                     }
                                 }
@@ -1794,6 +1800,8 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         public: typedef layer<transport_layer_type> this_type;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
+                        public: typedef float keep_alive_threshold_type;
+
 
                         public: virtual void connect(host_type const& host_, port_type port_, connection_successful_event_type successful_handler2 = 0, connection_failure_event_type failure_handler2 = 0) const
                         {
@@ -1937,6 +1945,8 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                     {
                                         std::cout << "No http content-length specified" << std::endl;
 
+                                        self->transport_layer_.close();
+
                                         failure_handler();
                                     }
                                 }
@@ -1948,7 +1958,11 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                     if(response->raw_header_list.length() > 0)
                                         successful_handler(response);
                                     else
+                                    {
+                                        self->transport_layer_.close();
+
                                         failure_handler();
+                                    }
                                 }
 
 
@@ -1984,6 +1998,20 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             });
                         }
 
+                        public: virtual bool is_alive() const
+                        {
+                            auto self = *this;
+
+                            return self->keep_alive_threshold == 0 ? true : (self->keep_alive_timer.stop() > self->keep_alive_threshold);
+                        }
+
+                        public: virtual void set_keep_alive(keep_alive_threshold_type keep_alive_threshold) const
+                        {
+                            auto self = *this;
+
+                            self->keep_alive_threshold = keep_alive_threshold;
+                        }
+
                         private: struct variables
                         {
                             variables(service_type service_) : transport_layer_(service_)
@@ -2009,7 +2037,9 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             event<connection_failure_event_type> connection_failure_event;
                             event<accept_failure_event_type> accept_failure_event;
                             event<accept_successful_event_type> accept_successful_event;
-                            timer counter;
+
+                            timer keep_alive_timer;
+                            keep_alive_threshold_type keep_alive_threshold;
                             transport_layer_type transport_layer_;
                         };
 
@@ -2436,6 +2466,128 @@ std::cout << "12" << std::endl;
         typedef ip::application::ngp::layer<tcp_socket> ngp_client;
         typedef ip::application::ngp::message ngp_message;
 
+        template<typename layer>
+        class server_base
+        {
+            public: typedef layer client_type;
+            public: typedef uint32_t port_type;
+
+            public: typedef std::function<void()> base_event_type;
+            public: typedef std::function<void(client_type)> accept_successful_event_type;
+            public: typedef base_event_type accept_failure_event_type;
+        };
+
+        template<typename layer_type>
+        class server : public server_base<layer_type>
+        {
+            public: typedef layer_type server_type;
+            public: typedef layer_type client_type;
+            public: typedef std::list<client_type> client_list_type;
+            public: typedef uint32_t port_type;
+
+            public: void accept(accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
+            {
+                auto self = *this;
+
+                if(DEBUG_MESSAGES2)
+                    std::cout << "[nextgen:network:server:accept] Waiting for client..." << std::endl;
+
+                auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
+                if(successful_handler == 0)
+                    successful_handler = self->accept_successful_event;
+
+                if(failure_handler == 0)
+                    failure_handler = self->accept_failure_event;
+
+                self->server_.accept(port,
+                [=](client_type client)
+                {
+                    if(DEBUG_MESSAGES2)
+                        std::cout << "[nextgen::network::server::accept] Successfully accepted client." << std::endl;
+
+                    client.set_keep_alive(240);
+
+                    successful_handler(client);
+                },
+                [=]()
+                {
+                    if(DEBUG_MESSAGES2)
+                        std::cout << "[nextgen::network::server::accept] Failed to accept client." << std::endl;
+
+                    failure_handler();
+                });
+            }
+
+            public: void disconnect()
+            {
+                auto self = *this;
+
+                std::for_each(self->client_list.begin(), self->client_list.end(), [=](client_type client)
+                {
+                    client.disconnect();
+                });
+
+                self->client_list.reset();
+            }
+
+            public: void clean()
+            {
+                auto self = *this;
+
+                if(self->timer.stop() > 5.0)
+                {
+                    std::cout << "[nextgen:server] Cleaning out expired clients.";
+
+                    std::remove_if(self->client_list.begin(), self->client_list.end(), [=](client_type client)
+                    {
+                        if(client.is_alive())
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            std::cout << ".";
+
+                            client.disconnect();
+
+                            return true;
+                        }
+                    });
+
+                    std::cout << std::endl;
+
+                    self->timer.start();
+                }
+            }
+
+            private: struct variables
+            {
+                variables(service_type service_, port_type port) : service_(service_), server_type(service_), port(port)
+                {
+
+                }
+
+                ~variables()
+                {
+
+                }
+
+                event<accept_failure_event_type> accept_failure_event;
+                event<accept_successful_event_type> accept_successful_event;
+
+                service_type service_;
+                server_type server_;
+                port_type port;
+                client_list_type client_list;
+                timer_type timer;
+            };
+
+            NEXTGEN_SHARED_DATA(layer, variables);
+        };
+
+        typedef server<http_client> http_server;
 
         template<typename layer_type>
         void create_server(service service_, uint32_t port, std::function<void(layer_type)> successful_handler = 0, std::function<void()> failure_handler = 0)
