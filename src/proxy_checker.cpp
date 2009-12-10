@@ -46,34 +46,74 @@ void proxos::application::run()
 
     proxos::proxy_checker proxy_checker("www.proxyprobe.com", 8080, self->network_service, proxy_database);
 
+    proxy_checker->refill_event += [=](size_t amount)
     {
-        std::string query("SELECT proxy_host, proxy_port, proxy_id FROM proxies WHERE proxy_last_checked < (NOW() - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(self->proxy_row_start) + ", " + to_string(self->proxy_row_end)); //ORDER BY proxy_rating DESC
+        std::cout << "Loading " << amount << " proxy..." << std::endl;
+
+        static uint32_t start = 0;
+
+        std::string query("SELECT proxy_host, proxy_port, proxy_id FROM proxies WHERE proxy_last_checked < (NOW() - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(start) + ", " + to_string(amount)); //ORDER BY proxy_rating DESC
 
         std::cout << query << std::endl;
 
-        auto list = proxy_database.get_row_list(query);
+        auto list = *proxy_database.get_row_list(query);
 
-        std::for_each(list.begin(), list.end(), [=](nextgen::database::row row)
+        //auto proxy2 = proxy; // bugfix(daemn) gah
+
+        std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
         {
-            proxy_checker.add_proxy(proxos::proxy(row));
+            proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
+
+            proxy_checker.check_proxy(proxy, [=]()
+            {
+                if(proxy.get_type() == "codeen")
+                    proxy.set_check_delay("0000-00-07 00:00:00");
+                else if(proxy.get_type() == "broken")
+                    proxy.set_check_delay("0000-00-01 00:00:00");
+
+                // todo(daemn) check mysql table check table proxies.proxies; for status OK
+                {
+                    std::string query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_latency = 0, proxy_rating = proxy_rating - 1, proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
+
+                    std::cout << query << " after " << to_string(proxy.get_latency()) << " seconds. " << std::endl;
+
+                    std::cout << "state: " << proxy.get_state() << std::endl;
+
+                    proxy_database.query(query);
+                }
+            });
         });
 
+        start += amount;
+
+        if(list.size() < amount)
+        // we've hit the end of the proxy list, loop back around and check for changes
+        {
+            start = 0;
+            amount = list.size();
+        }
+
+        std::cout << "Loaded " << amount << " proxies." << std::endl;
         //proxy_checker.add_list(); //proxy_rating DESC, proxy_hits DESC, proxy_latency ASC,
-    }
+
+
+    };
 
     nextgen::timer timer;
-    timer.start();
 
     while(true)
     {
         try
         {
+
             if(timer.stop() > 1)
             {
                 timer.start();
 
                 std::cout << "[proxos:application:run] Updating services..." << std::endl;
-                std::cout << proxy_checker.get_client_list().size() << std::endl;
+                std::cout << "C" << proxy_checker->job_list.size() << std::endl;
+                std::cout << "D" << proxy_checker->server->client_list.size() << std::endl;
+                //std::cout << "e" << proxy_checker->client_count << std::endl;
             }
 
             proxy_checker.update();

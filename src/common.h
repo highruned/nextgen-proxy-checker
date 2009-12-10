@@ -141,6 +141,36 @@ int to_int(element_type element)
 	return boost::lexical_cast<int>(element);
 }
 
+template<>
+int to_int(std::string element)
+{
+    boost::regex_error paren(boost::regex_constants::error_paren);
+
+    try
+    {
+        boost::match_results<std::string::const_iterator> what;
+        boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+        std::string::const_iterator start = element.begin();
+        std::string::const_iterator end = element.end();
+
+        if(boost::regex_search(start, end, what, boost::regex("([0-9]+)"), flags))
+        {
+            return boost::lexical_cast<int>(what[1]);
+        }
+        else
+        {
+            std::cout << "Couldn't convert to int" << std::endl;
+        }
+    }
+    catch(boost::regex_error const& e)
+    {
+        std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+    }
+
+    return 0;
+}
+
 namespace nextgen
 {
     typedef std::size_t size_t;
@@ -473,11 +503,13 @@ std::cout << "Z" << std::endl;
 		{
 			for(typename callback_list_type::const_iterator i = this->list.begin(), l = this->list.end(); i != l; ++i)
 			{
+			    std::cout << "CALLING CALLBACK" << std::endl;
+
 				(*i)(element_list...);
 			}
 		}
 
-		public: void add(callback_type t)
+		public: void add(callback_type&& t)
 		{
 			this->list.push_back(t);
 		}
@@ -635,7 +667,10 @@ std::cout << "Z" << std::endl;
             #endif
         };
 
-        NEXTGEN_SHARED_DATA(timer, variables);
+        NEXTGEN_SHARED_DATA(timer, variables,
+        {
+            this->start();
+        });
     };
 
     namespace network
@@ -904,8 +939,8 @@ std::cout << "Z" << std::endl;
                         public: typedef std::function<void(asio::error_code const&)> cancel_handler_type;
 
                         public: typedef std::function<void()> base_event_type;
-                        public: typedef base_event_type connection_successful_event_type;
-                        public: typedef base_event_type connection_failure_event_type;
+                        public: typedef base_event_type connect_successful_event_type;
+                        public: typedef base_event_type connect_failure_event_type;
                         public: typedef base_event_type receive_successful_event_type;
                         public: typedef base_event_type receive_failure_event_type;
                         public: typedef base_event_type send_successful_event_type;
@@ -914,14 +949,11 @@ std::cout << "Z" << std::endl;
                         public: typedef base_event_type quit_failure_event_type;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
-
+                        public: typedef base_event_type close_event_type;
 
                         public: virtual void initialize()
                         {
                             auto self = *this;
-
-                            if(DEBUG_MESSAGES)
-                                std::cout << "[nextgen:network:ip:transport:tcp:socket] (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                             self->cancel_handler_ = [=](asio::error_code const& error)
                             {
@@ -1002,6 +1034,8 @@ std::cout << "Z" << std::endl;
 
                             if(self->socket_.native() != asio::detail::invalid_socket)
                                 self->socket_.close();
+
+                            self->close_event();
                         }
 
                         public: virtual size_t bytes_readable()
@@ -1014,7 +1048,7 @@ std::cout << "Z" << std::endl;
                             return command.get();
                         }
 
-                        public: virtual void connect(host_type const& host_, port_type port_, connection_successful_event_type successful_handler2 = 0, connection_failure_event_type failure_handler2 = 0) const
+                        public: virtual void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self2 = *this;
                             auto self = self2;
@@ -1023,10 +1057,10 @@ std::cout << "Z" << std::endl;
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!
 
                             if(successful_handler == 0)
-                                successful_handler = self->connection_successful_event;
+                                successful_handler = self->connect_successful_event;
 
                             if(failure_handler == 0)
-                                failure_handler = self->connection_failure_event;
+                                failure_handler = self->connect_failure_event;
 
                             self->network_layer_.set_host(host_);
                             self->network_layer_.set_port(port_);
@@ -1365,7 +1399,7 @@ std::cout << "3" << std::endl;
 
                         private: struct variables
                         {
-                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(100), keep_alive_threshold(0)
+                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(120)
                             {
 
                             }
@@ -1378,12 +1412,13 @@ std::cout << "3" << std::endl;
 
                             event<send_successful_event_type> send_successful_event;
                             event<send_failure_event_type> send_failure_event;
-                            event<connection_successful_event_type> connection_successful_event;
-                            event<connection_failure_event_type> connection_failure_event;
+                            event<connect_successful_event_type> connect_successful_event;
+                            event<connect_failure_event_type> connect_failure_event;
                             event<receive_successful_event_type> receive_successful_event;
                             event<receive_failure_event_type> receive_failure_event;
                             event<accept_failure_event_type> accept_failure_event;
                             event<accept_successful_event_type> accept_successful_event;
+                            event<close_event_type> close_event;
 
                             service_type service_;
                             socket_type socket_;
@@ -1427,8 +1462,9 @@ std::cout << "3" << std::endl;
                     public: typedef base_event_type receive_failure_event_type;
                     public: typedef std::function<void(message_type)> request_successful_event_type;
                     public: typedef base_event_type request_failure_event_type;
-                    public: typedef base_event_type connection_successful_event_type;
-                    public: typedef base_event_type connection_failure_event_type;
+                    public: typedef base_event_type connect_successful_event_type;
+                    public: typedef base_event_type connect_failure_event_type;
+                    public: typedef base_event_type disconnect_event_type;
                 };
 
                 class message_base
@@ -1685,7 +1721,7 @@ std::cout << "GARRRRR" << self->raw_header_list << std::endl;
                                     {
                                         if(what[1].length() > 0)
                                         {
-                                            //std::cout << what[1] << ": " << what[2] << std::endl;
+                                            std::cout << "K: " << what[1] << ": " << what[2] << std::endl;
                                             self->header_list[what[1]] = what[2];
                                         }
 
@@ -1803,7 +1839,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         public: typedef float keep_alive_threshold_type;
 
 
-                        public: virtual void connect(host_type const& host_, port_type port_, connection_successful_event_type successful_handler2 = 0, connection_failure_event_type failure_handler2 = 0) const
+                        public: virtual void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
 
@@ -1811,10 +1847,10 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
                             if(successful_handler == 0)
-                                successful_handler = self->connection_successful_event;
+                                successful_handler = self->connect_successful_event;
 
                             if(failure_handler == 0)
-                                failure_handler = self->connection_failure_event;
+                                failure_handler = self->connect_failure_event;
 
                             self->transport_layer_.connect(host_, port_,
                             [=]
@@ -1923,23 +1959,32 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                 {
                                     if(response->header_list.find("Content-Length") != response->header_list.end())
                                     {
+                                        std::cout << "VVVVVVVVVVVVV " << response->header_list["Content-Length"] << " VVVVVV " << response->header_list["Content-Length"].length() << std::endl;
+
                                         auto content_length = to_int(response->header_list["Content-Length"]) - response->content.length();
 
-    std::cout << "trying to receive length = " << content_length << std::endl;
-
-                                        self->transport_layer_.receive(asio::transfer_at_least(content_length), response->stream,
-                                        [=]()
+                                        if(content_length == 0)
                                         {
-                                            response.unpack_content();
-
                                             successful_handler(response);
-                                        },
-                                        [=]()
+                                        }
+                                        else
                                         {
-                                            std::cout << "failed to receive rest of length" << std::endl;
+                                            std::cout << "trying to receive length = " << content_length << std::endl;
 
-                                            failure_handler();
-                                        });
+                                            self->transport_layer_.receive(asio::transfer_at_least(content_length), response->stream,
+                                            [=]()
+                                            {
+                                                response.unpack_content();
+
+                                                successful_handler(response);
+                                            },
+                                            [=]()
+                                            {
+                                                std::cout << "failed to receive rest of length" << std::endl;
+
+                                                failure_handler();
+                                            });
+                                        }
                                     }
                                     else
                                     {
@@ -1987,6 +2032,8 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->accept_failure_event;
 
+
+
                             self->transport_layer_.accept(port_,
                             [=](transport_layer_type client)
                             {
@@ -2002,7 +2049,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         {
                             auto self = *this;
 
-                            return self->keep_alive_threshold == 0 ? true : (self->keep_alive_timer.stop() > self->keep_alive_threshold);
+                            return (self->keep_alive_threshold == 0) ? true : (self->keep_alive_threshold > self->keep_alive_timer.stop());
                         }
 
                         public: virtual void set_keep_alive(keep_alive_threshold_type keep_alive_threshold) const
@@ -2014,12 +2061,12 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                         private: struct variables
                         {
-                            variables(service_type service_) : transport_layer_(service_)
+                            variables(service_type service_) : transport_layer_(service_), keep_alive_threshold(0)
                             {
 
                             }
 
-                            variables(transport_layer_type transport_layer_) : transport_layer_(transport_layer_)
+                            variables(transport_layer_type transport_layer_) : transport_layer_(transport_layer_), keep_alive_threshold(0)
                             {
 
                             }
@@ -2033,14 +2080,15 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             event<send_failure_event_type> send_failure_event;
                             event<receive_successful_event_type> receive_successful_event;
                             event<receive_failure_event_type> receive_failure_event;
-                            event<connection_successful_event_type> connection_successful_event;
-                            event<connection_failure_event_type> connection_failure_event;
+                            event<connect_successful_event_type> connect_successful_event;
+                            event<connect_failure_event_type> connect_failure_event;
                             event<accept_failure_event_type> accept_failure_event;
                             event<accept_successful_event_type> accept_successful_event;
+                            event<disconnect_event_type> disconnect_event;
 
                             timer keep_alive_timer;
-                            keep_alive_threshold_type keep_alive_threshold;
                             transport_layer_type transport_layer_;
+                            keep_alive_threshold_type keep_alive_threshold;
                         };
 
                         NEXTGEN_SHARED_DATA(layer, variables);
@@ -2108,15 +2156,15 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
 
-                        public: virtual void connect(host_type const& host_, port_type port_, connection_successful_event_type successful_handler = 0, connection_failure_event_type failure_handler = 0) const
+                        public: virtual void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler = 0, connect_failure_event_type failure_handler = 0) const
                         {
                             auto self = *this;
 
                             if(successful_handler == 0)
-                                successful_handler = self->connection_successful_event;
+                                successful_handler = self->connect_successful_event;
 
                             if(failure_handler == 0)
-                                failure_handler = self->connection_failure_event;
+                                failure_handler = self->connect_failure_event;
 
                             self->transport_layer_.connect(host_, port_,
                             [=]
@@ -2227,8 +2275,8 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             event<send_failure_event_type> send_failure_event;
                             event<receive_successful_event_type> receive_successful_event;
                             event<receive_failure_event_type> receive_failure_event;
-                            event<connection_successful_event_type> connection_successful_event;
-                            event<connection_failure_event_type> connection_failure_event;
+                            event<connect_successful_event_type> connect_successful_event;
+                            event<connect_failure_event_type> connect_failure_event;
                             event<accept_failure_event_type> accept_failure_event;
                             event<accept_successful_event_type> accept_successful_event;
 
@@ -2323,7 +2371,7 @@ std::cout << "12" << std::endl;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
 
-                        public: virtual void connect(host_type const& host_, port_type port_, connection_successful_event_type successful_handler = 0, connection_failure_event_type failure_handler = 0) const
+                        public: virtual void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler = 0, connect_failure_event_type failure_handler = 0) const
                         {
                             auto self = *this;
                         }
@@ -2443,8 +2491,8 @@ std::cout << "12" << std::endl;
                             event<send_failure_event_type> send_failure_event;
                             event<receive_successful_event_type> receive_successful_event;
                             event<receive_failure_event_type> receive_failure_event;
-                            event<connection_successful_event_type> connection_successful_event;
-                            event<connection_failure_event_type> connection_failure_event;
+                            event<connect_successful_event_type> connect_successful_event;
+                            event<connect_failure_event_type> connect_failure_event;
                             event<accept_failure_event_type> accept_failure_event;
                             event<accept_successful_event_type> accept_successful_event;
 
@@ -2478,16 +2526,21 @@ std::cout << "12" << std::endl;
         };
 
         template<typename layer_type>
-        class server : public server_base<layer_type>
+        class server : public server_base<layer_type> // todo(daemn) inheriting doesnt seem to be working
         {
+            public: typedef service service_type;
             public: typedef layer_type server_type;
             public: typedef layer_type client_type;
             public: typedef std::list<client_type> client_list_type;
             public: typedef uint32_t port_type;
+            public: typedef std::function<void()> base_event_type;
+            public: typedef std::function<void(client_type)> accept_successful_event_type;
+            public: typedef base_event_type accept_failure_event_type;
 
             public: void accept(accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
             {
-                auto self = *this;
+                auto self2 = *this;
+                auto self = self2;
 
                 if(DEBUG_MESSAGES2)
                     std::cout << "[nextgen:network:server:accept] Waiting for client..." << std::endl;
@@ -2501,13 +2554,28 @@ std::cout << "12" << std::endl;
                 if(failure_handler == 0)
                     failure_handler = self->accept_failure_event;
 
-                self->server_.accept(port,
+                self->server_.accept(self->port,
                 [=](client_type client)
                 {
+                    auto self3 = self; // bugfix(daemn) wow..... no stack
+
                     if(DEBUG_MESSAGES2)
                         std::cout << "[nextgen::network::server::accept] Successfully accepted client." << std::endl;
 
+                    self->client_list.push_back(client);
+
+                    auto i = self->client_list.end();
+
                     client.set_keep_alive(240);
+
+                    client->disconnect_event += [=]()
+                    {
+                        std::cout << "ERASE SERVER CLIENT" << std::endl;
+
+                        self3.remove_client(client);
+                    };
+
+                    client->transport_layer_->close_event += client->disconnect_event; // temp(daemn) event not saving callback refs or something
 
                     successful_handler(client);
                 },
@@ -2520,13 +2588,25 @@ std::cout << "12" << std::endl;
                 });
             }
 
+            public: void remove_client(client_type client) const
+            {
+                auto self = *this;
+
+                auto i = std::find(self->client_list.begin(), self->client_list.end(), client);
+
+                if(i != self->client_list.end())
+                    self->client_list.erase(i);
+            }
+
             public: void disconnect()
             {
                 auto self = *this;
 
-                std::for_each(self->client_list.begin(), self->client_list.end(), [=](client_type client)
+                std::for_each(self->client_list.begin(), self->client_list.end(), [=](client_type& client)
                 {
                     client.disconnect();
+
+                    std::cout << "DISCONNECT SERVER CLIENT" << std::endl;
                 });
 
                 self->client_list.reset();
@@ -2536,35 +2616,30 @@ std::cout << "12" << std::endl;
             {
                 auto self = *this;
 
-                if(self->timer.stop() > 5.0)
+                std::cout << "[nextgen:server] Cleaning out expired clients.";
+
+                std::remove_if(self->client_list.begin(), self->client_list.end(), [=](client_type& client) -> bool
                 {
-                    std::cout << "[nextgen:server] Cleaning out expired clients.";
-
-                    std::remove_if(self->client_list.begin(), self->client_list.end(), [=](client_type client)
+                    if(client.is_alive())
                     {
-                        if(client.is_alive())
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            std::cout << ".";
+                        return false;
+                    }
+                    else
+                    {
+                        std::cout << ".";
 
-                            client.disconnect();
+                        client.disconnect();
 
-                            return true;
-                        }
-                    });
+                        return true;
+                    }
+                });
 
-                    std::cout << std::endl;
-
-                    self->timer.start();
-                }
+                std::cout << std::endl;
             }
 
             private: struct variables
             {
-                variables(service_type service_, port_type port) : service_(service_), server_type(service_), port(port)
+                variables(service_type service_, port_type port) : service_(service_), server_(service_), port(port)
                 {
 
                 }
@@ -2581,10 +2656,9 @@ std::cout << "12" << std::endl;
                 server_type server_;
                 port_type port;
                 client_list_type client_list;
-                timer_type timer;
             };
 
-            NEXTGEN_SHARED_DATA(layer, variables);
+            NEXTGEN_SHARED_DATA(server, variables);
         };
 
         typedef server<http_client> http_server;
@@ -2856,7 +2930,7 @@ namespace nextgen
             public: typedef row row_type;
             public: typedef row_list row_list_type;
 
-            public: void connect(string const& host, string const& username, string const& password, string const& database = "")
+            public: void connect(string const& host, string const& username, string const& password, string const& database = "") const
             {
                 auto self = *this;
 
@@ -2888,7 +2962,7 @@ namespace nextgen
                 self->connected = database;
             }
 
-            public: void disconnect()
+            public: void disconnect() const
             {
                 auto self = *this;
 
@@ -2900,7 +2974,7 @@ namespace nextgen
             }
 
 
-            public: void query(nextgen::string const& query)
+            public: void query(nextgen::string const& query) const
             {
                 auto self = *this;
 
@@ -2950,7 +3024,7 @@ namespace nextgen
                             fields.push_back(field->name);
                         }
 
-                        while(row = mysql_fetch_row(result))
+                        while((row = mysql_fetch_row(result)))
                         {
                            lengths = mysql_fetch_lengths(result);
 
@@ -2991,7 +3065,7 @@ namespace nextgen
             }
 
 
-            public: row_list_type get_row_list(string const& query)
+            public: row_list_type get_row_list(string const& query) const
             {
                 auto self = *this;
 
@@ -3040,7 +3114,7 @@ namespace nextgen
                             fields.push_back(field->name);
                         }
 
-                        while(row = mysql_fetch_row(result))
+                        while((row = mysql_fetch_row(result)))
                         {
                            lengths = mysql_fetch_lengths(result);
 
@@ -3087,6 +3161,105 @@ namespace nextgen
                 } while (status == 0);
 
                 return list;
+            }
+
+
+            public: row_type get_row(string const& query) const
+            {
+                auto self = *this;
+
+                row_type hash(new row_type::element_type);
+
+                if(self->connected == "null")
+                {
+                    std::cout << "<Database> Not connected." << std::endl;
+
+                    return hash;
+                }
+
+                MYSQL_RES* result;
+                MYSQL_ROW row;
+                //std::cout << "a" << std::endl;
+                int status = mysql_query(self->link, query.c_str());
+                //std::cout << "1" << std::endl;
+                if(status)
+                {
+                    printf("Could not execute statement(s)");
+                    printf(mysql_error(self->link));
+                    mysql_close(self->link);
+                    return hash;
+                }
+            //std::cout << "2" << std::endl;
+                MYSQL_FIELD *field;
+                unsigned int num_fields;
+                unsigned int i;
+                unsigned long *lengths;
+
+                std::vector<std::string> fields;
+
+                do
+                {
+                    result = mysql_store_result(self->link);
+            //std::cout << "3" << std::endl;
+                    if(result)
+                    {
+                        //process_result_set(mysql, result);
+
+                        num_fields = mysql_num_fields(result);
+
+                        for(i = 0; i < num_fields; i++)
+                        {
+                            field = mysql_fetch_field(result);
+                            fields.push_back(field->name);
+                        }
+
+                        while((row = mysql_fetch_row(result)))
+                        {
+                           lengths = mysql_fetch_lengths(result);
+
+
+
+                           for(i = 0; i < num_fields; i++)
+                           {
+                               if(row[i])
+                               {
+                                    (*hash.get())[fields[i]] = row[i];
+                                    //std::cout << fields[i] << ": " << row[i] << std::endl;
+                               }
+                               else
+                               {
+                                    (*hash.get())[fields[i]] = "NULL";
+                                    //std::cout << fields[i] << ": " << "NULL" << std::endl;
+                               }
+                           }
+            //std::cout << "4" << std::endl;
+
+                        }
+
+                        mysql_free_result(result);
+                    }
+                    else
+                    {
+                        //std::cout << "5" << std::endl;
+                        if(mysql_field_count(self->link) == 0)
+                        {
+                            printf("%lld rows affected\n",
+                            mysql_affected_rows(self->link));
+                        }
+                        else
+                        {
+                            printf("Could not retrieve result set\n");
+
+                            break;
+                        }
+                    }
+
+                    if((status = mysql_next_result(self->link)) > 0)
+                        printf("Could not execute statement\n");
+            //std::cout << "6" << std::endl;
+                } while (status == 0);
+
+                return hash;
             }
 
             private: struct variables

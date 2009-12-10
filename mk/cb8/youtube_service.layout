@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Linux Debug" />
-	<File name="../../src/main.h" open="0" top="0" tabpos="2">
-		<Cursor position="73" topLine="0" />
+	<File name="../../src/common.h" open="1" top="0" tabpos="0">
+		<Cursor position="0" topLine="0" />
 	</File>
-	<File name="../../src/youtube_service.cpp" open="1" top="1" tabpos="5">
-		<Cursor position="1423" topLine="45" />
+	<File name="../../src/youtube_service.cpp" open="1" top="0" tabpos="2">
+		<Cursor position="955" topLine="33" />
+	</File>
+	<File name="../../src/youtube_video.h" open="1" top="0" tabpos="3">
+		<Cursor position="4038" topLine="0" />
 	</File>
 </CodeBlocks_layout_file>

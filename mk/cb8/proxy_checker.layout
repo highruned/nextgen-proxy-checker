@@ -1,25 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Linux Debug" />
-	<File name="../../src/common.h" open="1" top="0" tabpos="6">
-		<Cursor position="9308" topLine="309" />
+	<File name="../../src/common.h" open="0" top="0" tabpos="6">
+		<Cursor position="58222" topLine="1760" />
 	</File>
-	<File name="../../src/gzip.h" open="1" top="0" tabpos="3">
-		<Cursor position="3403" topLine="132" />
+	<File name="../../src/gzip.h" open="0" top="0" tabpos="3">
+		<Cursor position="3403" topLine="127" />
 	</File>
-	<File name="../../src/main.cpp" open="1" top="0" tabpos="3">
-		<Cursor position="9288" topLine="342" />
-	</File>
-	<File name="../../src/main.h" open="1" top="0" tabpos="2">
-		<Cursor position="78085" topLine="2027" />
-	</File>
-	<File name="../../src/port_scanner.h" open="1" top="0" tabpos="8">
+	<File name="../../src/port_scanner.h" open="0" top="0" tabpos="8">
 		<Cursor position="1" topLine="0" />
 	</File>
-	<File name="../../src/proxy_checker.h" open="1" top="0" tabpos="5">
-		<Cursor position="6960" topLine="212" />
+	<File name="../../src/proxy_checker.cpp" open="1" top="1" tabpos="1">
+		<Cursor position="2796" topLine="63" />
 	</File>
-	<File name="../../src/youtube.h" open="1" top="0" tabpos="7">
-		<Cursor position="4478" topLine="70" />
+	<File name="../../src/proxy_checker.h" open="1" top="0" tabpos="2">
+		<Cursor position="25099" topLine="670" />
 	</File>
 </CodeBlocks_layout_file>

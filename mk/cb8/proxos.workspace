@@ -3,5 +3,6 @@
 	<Workspace title="Workspace">
 		<Project filename="youtube_service.cbp" />
 		<Project filename="proxy_checker.cbp" active="1" />
+		<Project filename="../../../stokegame/server/mk/cb8/stokegame.cbp" />
 	</Workspace>
 </CodeBlocks_workspace_file>
