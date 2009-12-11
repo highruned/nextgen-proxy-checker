@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Linux Debug" />
-	<File name="../../src/common.h" open="1" top="0" tabpos="0">
+	<File name="../../src/common.h" open="1" top="0" tabpos="1">
 		<Cursor position="0" topLine="0" />
 	</File>
 	<File name="../../src/youtube_service.cpp" open="1" top="0" tabpos="2">

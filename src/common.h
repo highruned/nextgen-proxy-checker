@@ -46,6 +46,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/shared_array.hpp>
 #include <boost/ref.hpp>
+#include <boost/numeric/conversion/cast.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/any.hpp>
 #include <boost/function.hpp>
@@ -64,6 +65,7 @@
 #include <boost/archive/xml_archive_exception.hpp>
 #include <boost/exception/diagnostic_information.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "gzip.h"
 #include "mysql/mysql.h"
@@ -138,7 +140,7 @@ std::string to_string(element_type element)
 template<typename element_type>
 int to_int(element_type element)
 {
-	return boost::lexical_cast<int>(element);
+	return boost::lexical_cast<int32_t>(element);
 }
 
 template<>
@@ -154,8 +156,9 @@ int to_int(std::string element)
         std::string::const_iterator start = element.begin();
         std::string::const_iterator end = element.end();
 
-        if(boost::regex_search(start, end, what, boost::regex("([0-9]+)"), flags))
+        if(boost::regex_search(start, end, what, boost::regex("([\\-0-9]+)"), flags))
         {
+            std::cout << "converting to int: " << what[1] << std::endl;
             return boost::lexical_cast<int>(what[1]);
         }
         else

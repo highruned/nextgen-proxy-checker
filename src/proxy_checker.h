@@ -162,7 +162,7 @@ namespace proxos
 
             }
 
-            variables(host_type const& host = "undefined.com", port_type port = 0, id_type id = 0, type_type const& type = "", latency_type latency = 0) : host(host), port(port), id(id), type(""), latency(0.0), state(0), check_delay("0000-00-00 10:00:00")
+            variables(host_type const& host = "undefined.com", port_type port = 0, id_type id = 0, type_type const& type = "", latency_type latency = 0) : rating(0), host(host), port(port), id(id), type(""), latency(0.0), state(0), check_delay("0000-00-00 10:00:00")
             {
 
             }
@@ -172,6 +172,7 @@ namespace proxos
 
             }
 
+            int32_t rating;
             host_type host;
             port_type port;
             id_type id;
@@ -421,10 +422,10 @@ std::cout << "REMOVEDDDDDDDDDDDDD" << std::endl;
                 size_t after = self->job_list.size();
 
                 size_t total = after - before;
-std::cout << "total: " << total << std::endl;
+//std::cout << "total: " << total << std::endl;
                 size_t i = 0;
-std::cout << "active: " << self->active_clients << std::endl;
-std::cout << "size: " << self->job_list.size() << std::endl;
+//std::cout << "active: " << self->active_clients << std::endl;
+//std::cout << "size: " << self->job_list.size() << std::endl;
                // if(self->job_list.size() == 1)
                 //    self->job_position = self->job_list.begin();
             }
@@ -675,7 +676,7 @@ std::cout << "REM3" << std::endl;
 
         private: struct variables
         {
-            variables(std::string const& host, uint32_t port, network_service_type network_service, database_type database_link) : active_clients(0), host(host), port(port), network_service(network_service), server(network_service, port), database_link(database_link), client_max(850)
+            variables(std::string const& host, uint32_t port, network_service_type network_service) : active_clients(0), host(host), port(port), network_service(network_service), server(network_service, port), client_max(850)
             {
 
             }
@@ -695,7 +696,6 @@ std::cout << "REM3" << std::endl;
             job_list_type job_list;
             network_service_type network_service;
             server_type server;
-            database_type database_link;
             size_t client_max;
             timer_type timer;
             size_t active_clients;
