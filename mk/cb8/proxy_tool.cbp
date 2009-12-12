@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="Proxy Checker" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Linux Debug">
+				<Option output="../../bin/proxy_checker" prefix_auto="1" extension_auto="1" />
+				<Option object_output="../../../../temp/proxos/debug" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Linux Release">
+				<Option output="../../bin/proxy_checker" prefix_auto="1" extension_auto="1" />
+				<Option object_output="../../../../temp/proxos/debug" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Option use_console_runner="0" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-O3" />
+			<Add option="-O2" />
+			<Add option="-O1" />
+			<Add option="-Wmain" />
+			<Add option="-Wfatal-errors" />
+			<Add option="-Wall" />
+			<Add option="-std=c++0x" />
+			<Add option="-pthread" />
+			<Add option="-lz \ `/usr/local/mysql/bin/mysql_config --include --libmysqld-libs`" />
+			<Add directory="../../../src" />
+		</Compiler>
+		<Linker>
+			<Add option="-s" />
+			<Add option="-lpthread" />
+			<Add option="-ldl" />
+			<Add option="-lpq" />
+			<Add library="libstdc++-4.5.a" />
+			<Add library="libmysqlclient.a" />
+			<Add library="libboost_regex.a" />
+			<Add library="libboost_thread.a" />
+			<Add library="libcurl.a" />
+			<Add library="libboost_iostreams.a" />
+			<Add library="libz.a" />
+		</Linker>
+		<Unit filename="../../src/common.h" />
+		<Unit filename="../../src/gzip.h" />
+		<Unit filename="../../src/port_scanner.h" />
+		<Unit filename="../../src/proxy_checker.cpp" />
+		<Unit filename="../../src/proxy_checker.h" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+			<envvars />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

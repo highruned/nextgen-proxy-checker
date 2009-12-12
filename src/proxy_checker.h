@@ -16,6 +16,15 @@ namespace proxos
         public: typedef float latency_type;
         public: typedef nextgen::timer timer_type;
 
+        public: struct types
+        {
+            static const uint32_t none = 0;
+            static const uint32_t transparent = 1;
+            static const uint32_t distorting = 2;
+            static const uint32_t anonymous = 3;
+            static const uint32_t elite = 4;
+        };
+
         public: struct states
         {
             static const uint32_t none = 0;
@@ -27,6 +36,7 @@ namespace proxos
             static const uint32_t cannot_connect = 6;
             static const uint32_t codeen = 7;
             static const uint32_t perfect = 8;
+            //user_agent_via, cache_control, cache_info, connection_close, connection_keep_alive,
         };
 
 		public: host_type const& get_host() const
@@ -180,6 +190,7 @@ namespace proxos
             latency_type latency;
             timer_type timer;
             uint32_t state;
+            //uint32_t type;
             std::string check_delay;
             //nextgen::timestamp last_checked;
             //nextgen::timestamp check_delay; // todo(daemn) rename to interval?
@@ -253,18 +264,11 @@ namespace proxos
             auto self = *this;
 
             if(self.find_job(proxy->id) == self->job_list.end())
-            {
-                //std::pair<proxy_type::id_type, job_type>(proxy.get_id(), job_type(proxy, self->network_service, callback));
             // add the proxy to the list if it doesnt already exist
-            auto v = job_type(proxy, self->network_service, callback);
-                self->job_list.push_back(v);
-std::cout << self->job_list.size() << std::endl;
-                //if(self->job_list.size() == 1)
-               //     self->job_position = self->job_list.begin();
-               //else if(t)
-                //    self->job_position = --self->job_list.end();
-                //self.get_proxy(proxy.get_id());
+            {
+                auto v = job_type(proxy, self->network_service, callback);
 
+                self->job_list.push_back(v);
             }
         }
 
@@ -276,8 +280,6 @@ std::cout << self->job_list.size() << std::endl;
             {
                 return (job->proxy.get_id() == id);
             });
-
-
         }
 
         public: void remove_job(nextgen::uint32_t id) const
@@ -289,7 +291,6 @@ std::cout << self->job_list.size() << std::endl;
             if((i = self.find_job(id)) != self->job_list.end())
             {
                 self->job_list.erase(i);
-std::cout << "REMOVEDDDDDDDDDDDDD" << std::endl;
             }
         }
 
@@ -390,11 +391,8 @@ std::cout << "REMOVEDDDDDDDDDDDDD" << std::endl;
             });
         }
 
-
-
         public: void update()
         {
-
             auto self = *this;
 
             if(self->timer.stop() >= 5)
@@ -404,11 +402,6 @@ std::cout << "REMOVEDDDDDDDDDDDDD" << std::endl;
 
                 self->timer.start();
             }
-
-
-
-            //std::cout << "row size: " << self->rows.size() << std::endl;
-            //if(get_process_total_connections(get_process_id()) < self->max_sockets)
 
             if(self->active_clients < self->client_max)
             {
@@ -422,68 +415,15 @@ std::cout << "REMOVEDDDDDDDDDDDDD" << std::endl;
                 size_t after = self->job_list.size();
 
                 size_t total = after - before;
-//std::cout << "total: " << total << std::endl;
+
                 size_t i = 0;
-//std::cout << "active: " << self->active_clients << std::endl;
-//std::cout << "size: " << self->job_list.size() << std::endl;
-               // if(self->job_list.size() == 1)
-                //    self->job_position = self->job_list.begin();
             }
 
-std::for_each(self->job_list.begin(), self->job_list.end(), [=](job_type& job)
-{
-    if(!job->complete)
-    {
-        job->complete = true;
-
-
-                   //auto j = self->job_position;
-
-                //std::cout << "<ProxyChecker> There are " << self->socket_list.size() << " concurrent sockets." << std::endl;
-/*
-                if(self->proxy_row_list->size() == 0 || self->proxy_row_iter == self->proxy_row_list->end() - 1)
+            std::for_each(self->job_list.begin(), self->job_list.end(), [=](job_type& job)
+            {
+                if(!job->complete)
                 {
-                    self->proxy_row_start += self->proxy_row_end;
-
-                    //social_satan::nge::Instance().Database.Connect("Proxies");
-
-                    std::string query("SELECT proxy_host, proxy_port, proxy_id FROM proxies WHERE proxy_last_checked < (NOW() - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(self->proxy_row_start) + ", " + to_string(self->proxy_row_end));
-
-                    std::cout << query << std::endl;
-
-                    self->proxy_row_list = self->database_link.get_row_list(query); //proxy_rating DESC, proxy_hits DESC, proxy_latency ASC,
-
-                    if(self->proxy_row_list->size() == 0)
-                    {
-                        std::cout << "[proxos:proxy_checker] No more proxies to check." << std::endl;
-
-                        self->proxy_row_start = 0;
-
-                        return;
-                    }
-                    else
-                    {
-                        std::cout << "[proxos:proxy_checker] Checking " << self->proxy_row_list->size() << " proxies. " << std::endl;
-                    }
-
-                    self->proxy_row_iter = self->proxy_row_list->begin();
-                }
-                else if(self->proxy_row_list->size() == 0)
-                {
-                    std::cout << "[proxos:proxy_checker] No more proxies." << std::endl;
-
-                    self->proxy_row_start = 0;
-
-                    return;
-                }
-                else
-                {
-                    ++self->proxy_row_iter;
-                }
-*/
-                //client_type(self->network_service);
-
-                //self->client_list.push_back(client);
+                    job->complete = true;
 
                     ++self->active_clients;
 
@@ -510,23 +450,8 @@ std::for_each(self->job_list.begin(), self->job_list.end(), [=](job_type& job)
                         r1->header_list["Host"] = self->host;
                         r1->header_list["User-Agent"] = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)";
                         r1->header_list["PID"] = to_string(proxy.get_id());
+                        r1->header_list["Keep-Alive"] = "300";
                         r1->header_list["Proxy-Connection"] = "keep-alive";
-                        //r1->header_list["Connection"] = "keep-alive";
-                        //r1->header_list["Connection"] = "close";
-
-                        //r1->raw_header_list = "Host: " + my_ip + "\r\n"
-        //"User-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)" "\r\n"
-       // "Accept-Language: en-us,en;q=0.5" "\r\n"
-       // "Accept-Encoding: gzip,deflate" "\r\n"
-       // "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7" "\r\n"
-       // "PID: " + to_string(proxy.get_id()) + "\r\n"
-        //"If-Modified-Since: Fri, 14 Oct 2005 16:29:56 GMT" "\r\n"
-        //"If-None-Match: 5e02c3-3f8-5e2e4900" "\r\n"
-       // "Cache-Control: max-age=0" "\r\n"
-        //"Proxy-Connection: keep-alive" "\r\n"
-        //"Connection: close" "\r\n";
-
-                        //self->pending_job_list.push_back(job);
 
                         proxy.get_timer().start();
 
@@ -539,99 +464,49 @@ std::for_each(self->job_list.begin(), self->job_list.end(), [=](job_type& job)
                             std::cout << r2->raw_header_list << std::endl;
                             std::cout << r2->content << std::endl;
 
-                            //switch(r2->status_code)
-                            //{
-                               // case 200:
-                                //case 302:
-                               //case 303:
-                               // {
-                               proxy.set_latency(proxy.get_timer().stop());
+                            proxy.set_latency(proxy.get_timer().stop());
 
-                                    // proxy can receive data
-                                    if(r2->content.find("proxos") != std::string::npos)
-                                    {
-                                        // proxy can receive headers
-                                        if(r2->header_list.find("Server") != r2->header_list.end()
-                                            && r2->header_list["Server"] == "proxos"
-                                            && r2->header_list.find("PID") != r2->header_list.end())
-                                        {
-                                            //social_satan::nge::Instance().Database.Connect("Proxies");
+                            // proxy can receive data
+                            if(r2->content.find("proxos") != std::string::npos)
+                            {
+                                // proxy can receive headers
+                                if(r2->header_list.find("Server") != r2->header_list.end()
+                                    && r2->header_list["Server"] == "proxos"
+                                    && r2->header_list.find("PID") != r2->header_list.end())
+                                {
+                                    proxy.set_state(proxy_type::states::perfect);
 
-                                            proxy.set_state(proxy_type::states::perfect);
+                                    if(DEBUG_MESSAGES2)
+                                        std::cout << "good proxy" << std::endl;
+                                }
+                                // proxy cannot receive headers
+                                else
+                                {
+                                    proxy.set_state(proxy_type::states::bad_return_headers);
 
-                                           // std::string query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_browser_capable = 1, proxy_rating = proxy_rating + 1, proxy_latency = " + to_string(proxy.get_latency()) + ", proxy_last_checked = NOW() WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
+                                    if(DEBUG_MESSAGES2)
+                                        std::cout << "goodish proxy - doesnt forward headers correctly - correct_headers = false" << std::endl;
+                                }
+                            }
+                            // proxy cannot receive data
+                            else
+                            {
+                                if(r2->content.find("CoDeeN") != std::string::npos)
+                                {
+                                    proxy.set_state(proxy_type::states::codeen);
+                                }
+                                else
+                                {
+                                    proxy.set_type("broken");
 
-                                            //std::cout << query << " after " << to_string(proxy.get_timer().stop()) << " seconds. " << std::endl;
-
-                                            //self->database_link.query(query);
-
-                                            if(DEBUG_MESSAGES2)
-                                                std::cout << "good proxy" << std::endl;
-                                        }
-                                        // proxy cannot receive headers
-                                        else
-                                        {
-                                            //social_satan::nge::Instance().Database.Connect("Proxies");
-
-                                            proxy.set_state(proxy_type::states::bad_return_headers);
-
-                                            //std::string query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_browser_capable = 0, proxy_rating = proxy_rating + 1, proxy_latency = " + to_string(proxy.get_latency()) + ", proxy_last_checked = NOW() WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
-
-                                            //std::cout << query << " after " << to_string(proxy.get_timer().stop()) << " seconds. " << std::endl;
-
-                                            //self->database_link.query(query);
-
-                                            if(DEBUG_MESSAGES2)
-                                                std::cout << "goodish proxy - doesnt forward headers correctly - correct_headers = false" << std::endl;
-                                        }
-                                    }
-                                    // proxy cannot receive data
-                                    else
-                                    {
-                                        //std::string query;
-
-                                        if(r2->content.find("CoDeeN") != std::string::npos)
-                                        {
-                                            //proxy.set_type("codeen");
-
-                                            proxy.set_state(proxy_type::states::codeen);
-                                            //proxy.set_check_delay("0000-00-07 00:00:00");
-
-                                            // check codeen proxies once a week
-                                            //query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_latency = 0, proxy_rating = proxy_rating - 1, proxy_last_checked = NOW(), proxy_check_delay = \"0000-00-07 00:00:00\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
-                                        }
-                                        else
-                                        {
-                                            proxy.set_type("broken");
-
-                                            proxy.set_state(proxy_type::states::bad_return_data);
-                                            //proxy.set_check_delay("0000-00-01 00:00:00");
-
-                                            // check broken proxies once a day
-                                            //query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_latency = 0, proxy_rating = proxy_rating - 1, proxy_last_checked = NOW(), proxy_check_delay = \"0000-00-01 00:00:00\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
-                                        }
-
-                                        //std::cout << query << " after " << to_string(proxy.get_timer().stop()) << " seconds. " << std::endl;
-
-                                        //self->database_link.query(query);
-
-
-                                    }
-
-                                   // break;
-                               // }
-                               // default:
-                               // {
-                               //     if(DEBUG_MESSAGES2)
-                               //         std::cout << "[proxos:proxy_client] bad proxy via sending headers" << std::endl;
-                               // }
-                            //}
-
+                                    proxy.set_state(proxy_type::states::bad_return_data);
+                                }
+                            }
 
                             client.disconnect();
-std::cout << "REM1" << std::endl;
 
---self->active_clients;
+                            --self->active_clients;
+
                             self.remove_job(proxy.get_id());
 
                             if(callback != 0)
@@ -645,8 +520,9 @@ std::cout << "REM1" << std::endl;
                             proxy.set_type("dead");
 
                             proxy.set_state(proxy_type::states::cannot_send);
-std::cout << "REM2" << std::endl;
---self->active_clients;
+
+                            --self->active_clients;
+
                             self.remove_job(proxy.get_id());
 
                             if(callback != 0)
@@ -655,23 +531,19 @@ std::cout << "REM2" << std::endl;
                     },
                     [=]()
                     {
-                            proxy.set_type("dead");
+                        proxy.set_type("dead");
 
-                            proxy.set_state(proxy_type::states::cannot_connect);
-std::cout << "REM3" << std::endl;
+                        proxy.set_state(proxy_type::states::cannot_connect);
 
-                            self.remove_job(proxy.get_id());
---self->active_clients;
-                            if(callback != 0)
-                                callback();
+                        self.remove_job(proxy.get_id());
+
+                        --self->active_clients;
+
+                        if(callback != 0)
+                            callback();
                     });
-
-                    //self->job_position = ++self->job_position;
-    }
-});
-                    //self.remove_job(self->job_position);
-
-
+                }
+            });
         }
 
         private: struct variables
@@ -688,11 +560,6 @@ std::cout << "REM3" << std::endl;
 
             std::string host;
             uint32_t port;
-            //proxy_row_start_type proxy_row_start;
-            //proxy_row_end_type proxy_row_end;
-           // proxy_row_list_type proxy_row_list;
-           // proxy_row_iter_type proxy_row_iter;
-           // proxy_list_type proxy_list;
             job_list_type job_list;
             network_service_type network_service;
             server_type server;

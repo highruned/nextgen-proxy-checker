@@ -3,12 +3,12 @@
 #include "common.h"
 #include "proxy_checker.h"
 
-
-class ip_range
+class address
 {
-    public: union subnet
+    union v4
     {
-        int val;
+        int value;
+
         struct
         {
             uint8_t first;
@@ -18,45 +18,101 @@ class ip_range
         };
     };
 
-    public: subnet lower;
-    public: subnet upper;
+    public: v4 value;
+    public: bool valid;
 
-    public: subnet parse_address(std::string const& ip)
+    public: bool is_valid()
     {
-        std::vector<std::string> subs;
-
-        boost::split(subs, ip, boost::is_any_of("."));
-
-        subnet s;
-
-        s.first = boost::numeric_cast<uint8_t>(boost::lexical_cast<uint32_t>(subs[0]));
-        std::cout << 1 << std::endl;
-        s.second = boost::numeric_cast<uint8_t>(boost::lexical_cast<uint32_t>(subs[1]));
-        std::cout << 2 << std::endl;
-        s.third = boost::numeric_cast<uint8_t>(boost::lexical_cast<uint32_t>(subs[2]));
-        std::cout << 3 << std::endl;
-        s.forth = boost::numeric_cast<uint8_t>(boost::lexical_cast<uint32_t>(subs[3]));
-
-        return s;
+        return this->valid;
     }
 
-    public: bool is_within_range(std::string const& ip)
+    public: void from_string(std::string const& s)
     {
-        subnet s = this->parse_address(ip);
+        boost::regex_error paren(boost::regex_constants::error_paren);
 
-        if(s.first <= this->upper.first && s.first >= this->lower.first
-        && s.second <= this->upper.second && s.second >= this->lower.second
-        && s.third <= this->upper.third && s.third >= this->lower.third
-        && s.forth <= this->upper.forth && s.forth >= this->lower.forth)
+        try
+        {
+            boost::match_results<std::string::const_iterator> what;
+            boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+            std::string::const_iterator start = s.begin();
+            std::string::const_iterator end = s.end();
+
+            if(boost::regex_search(start, end, what, boost::regex("^([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)$"), flags))
+            {
+                auto first = boost::lexical_cast<uint32_t>(what[1]);
+                auto second = boost::lexical_cast<uint32_t>(what[2]);
+                auto third = boost::lexical_cast<uint32_t>(what[3]);
+                auto forth = boost::lexical_cast<uint32_t>(what[4]);
+
+                if(!(first >= 0 && first <= 255
+                && second >= 0 && second <= 255
+                && third >= 0 && third <= 255
+                && forth >= 0 && forth <= 255))
+                {
+                    this->valid = false;
+
+                    return;
+                }
+
+                this->value.first = boost::numeric_cast<uint8_t>(first);
+                this->value.second = boost::numeric_cast<uint8_t>(second);
+                this->value.third = boost::numeric_cast<uint8_t>(third);
+                this->value.forth = boost::numeric_cast<uint8_t>(forth);
+            }
+            else
+            {
+                this->valid = false;
+
+                return;
+            }
+        }
+        catch(boost::regex_error const& e)
+        {
+            std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+        }
+
+        //std::vector<std::string> subs;
+
+        //boost::split(subs, s, boost::is_any_of("."));
+
+    }
+
+    public: address(uint32_t address) : valid(true)
+    {
+        this->value.value = address;
+    }
+
+    public: address(std::string const& address) : valid(true)
+    {
+        this->from_string(address);
+    }
+};
+
+class address_range
+{
+    public: address lower;
+    public: address upper;
+
+    public: bool is_within_range(address& a)
+    {
+        if(a.value.first <= this->upper.value.first && a.value.first >= this->lower.value.first
+        && a.value.second <= this->upper.value.second && a.value.second >= this->lower.value.second
+        && a.value.third <= this->upper.value.third && a.value.third >= this->lower.value.third
+        && a.value.forth <= this->upper.value.forth && a.value.forth >= this->lower.value.forth)
             return true;
 
         return false;
     }
 
-    public: ip_range(std::string const& lower, std::string const& upper)
+    public: address_range(address&& lower, address&& upper) : lower(lower), upper(upper)
     {
-        this->lower = this->parse_address(lower);
-        this->upper = this->parse_address(upper);
+
+    }
+
+    public: address_range(std::string const& lower, std::string const& upper) : lower(lower), upper(upper)
+    {
+
     }
 };
 
@@ -77,67 +133,31 @@ namespace proxos
         {
             auto self = *this;
 
-            if(self.proxy_not_banned(proxy->host))
+            std::cout << proxy->host << ":" << proxy->port << std::endl;
+
+            address a(proxy->host);
+
+            if(!a.is_valid())
             {
-                self->proxy_checker.check_proxy(proxy, [=]()
-                {
-                    if(proxy.get_type() == "dead")
-                    {
-                        proxy.set_check_delay("0000-00-01 00:00:00");
-                        proxy->rating -= 1;
-                    }
-                    else if(proxy.get_type() == "broken")
-                    {
-                        proxy.set_check_delay("0000-00-01 00:00:00");
-                        proxy->rating -= 1;
-                    }
-                    else if(proxy.get_type() == "transparent")
-                    {
-                        proxy.set_check_delay("0000-00-00 05:00:00");
-                        proxy->rating += 1;
-                    }
-                    else if(proxy.get_type() == "anonymous")
-                    {
-                        proxy.set_check_delay("0000-00-00 05:00:00");
-                        proxy->rating += 1;
-                    }
-                    else if(proxy.get_type() == "elite")
-                    {
-                        proxy.set_check_delay("0000-00-00 05:00:00");
-                        proxy->rating += 1;
-                    }
-                       else if(proxy.get_type() == "socks4")
-                    {
-                        proxy.set_check_delay("0000-00-00 05:00:00");
-                        proxy->rating += 1;
-                    }
-                    else if(proxy.get_type() == "socks5")
-                    {
-                        proxy.set_check_delay("0000-00-00 05:00:00");
-                        proxy->rating += 1;
-                    }
-                    else if(proxy.get_type() == "codeen")
-                    {
-                        proxy.set_check_delay("0000-00-07 00:00:00");
-                    }
-                    // todo(daemn) check mysql table check table proxies.proxies; for status OK
-                    {
-                        std::string query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_latency = " + to_string(proxy->latency) + ", proxy_state = " + to_string(proxy->state) + ", proxy_rating = " + to_string(proxy->rating) + ", proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
+                std::cout << "INVALID PROXY ####################################" << std::endl;
 
-                        std::cout << query << " after " << to_string(proxy.get_latency()) << " seconds. " << std::endl;
+                proxy.set_check_delay("0001-00-00 00:00:00");
 
-                        std::cout << "state: " << proxy.get_state() << std::endl;
+                std::string query = "UPDATE proxies SET proxy_type = \"invalid\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
 
-                        self->proxy_database.query(query);
-                    }
+                self->proxy_database.query(query);
 
-                    if(callback != 0)
-                        callback();
-                });
+                if(callback != 0)
+                    callback();
+
+                return;
             }
-            else
+
+            if(self.proxy_is_banned(a))
             // dont check proxy for another month
             {
+                std::cout << "BANNED PROXY ####################################" << std::endl;
+
                 proxy.set_check_delay("0000-01-00 00:00:00");
 
                 std::string query = "UPDATE proxies SET proxy_type = \"banned\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
@@ -146,20 +166,80 @@ namespace proxos
 
                 if(callback != 0)
                     callback();
+
+                return;
             }
+
+
+
+            self->proxy_checker.check_proxy(proxy, [=]()
+            {
+                if(proxy.get_type() == "dead")
+                {
+                    proxy.set_check_delay("0000-00-01 00:00:00");
+                    proxy->rating -= 1;
+                }
+                else if(proxy.get_type() == "broken")
+                {
+                    proxy.set_check_delay("0000-00-01 00:00:00");
+                    proxy->rating -= 1;
+                }
+                else if(proxy.get_type() == "transparent")
+                {
+                    proxy.set_check_delay("0000-00-00 05:00:00");
+                    proxy->rating += 1;
+                }
+                else if(proxy.get_type() == "anonymous")
+                {
+                    proxy.set_check_delay("0000-00-00 05:00:00");
+                    proxy->rating += 1;
+                }
+                else if(proxy.get_type() == "elite")
+                {
+                    proxy.set_check_delay("0000-00-00 05:00:00");
+                    proxy->rating += 1;
+                }
+                   else if(proxy.get_type() == "socks4")
+                {
+                    proxy.set_check_delay("0000-00-00 05:00:00");
+                    proxy->rating += 1;
+                }
+                else if(proxy.get_type() == "socks5")
+                {
+                    proxy.set_check_delay("0000-00-00 05:00:00");
+                    proxy->rating += 1;
+                }
+                else if(proxy.get_type() == "codeen")
+                {
+                    proxy.set_check_delay("0000-00-07 00:00:00");
+                }
+                // todo(daemn) check mysql table check table proxies.proxies; for status OK
+                {
+                    std::string query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_latency = " + to_string(proxy->latency) + ", proxy_state = " + to_string(proxy->state) + ", proxy_rating = " + to_string(proxy->rating) + ", proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
+
+                    std::cout << query << " after " << to_string(proxy.get_latency()) << " seconds. " << std::endl;
+
+                    std::cout << "state: " << proxy.get_state() << std::endl;
+
+                    self->proxy_database.query(query);
+                }
+
+                if(callback != 0)
+                    callback();
+            });
         }
 
-        public: bool proxy_not_banned(std::string const& host) const
+        public: bool proxy_is_banned(address& a) const
         {
             auto self = *this;
 
             for(auto i = self->banlist.begin(), l = self->banlist.end(); i != l; ++i)
             {
-                if((*i).is_within_range(host))
-                    return false;
+                if((*i).is_within_range(a))
+                    return true;
             }
 
-            return true;
+            return false;
         }
 
 		public: void run();
@@ -178,8 +258,8 @@ namespace proxos
 
             network_service_type network_service;
             nextgen::database::link proxy_database;
-            proxy_checker proxy_checker;
-            std::vector<ip_range> banlist;
+            proxos::proxy_checker proxy_checker;
+            std::vector<address_range> banlist;
         };
 
         NEXTGEN_SHARED_DATA(application, variables);
@@ -209,7 +289,7 @@ void proxos::application::run()
 
         boost::split(ip, host, boost::is_any_of("-"));
 
-        ip_range s(ip[0], ip[1]);
+        address_range s(ip[0], ip[1]);
 
         self->banlist.push_back(s);
     });
@@ -232,6 +312,7 @@ void proxos::application::run()
 
             std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
             {
+                std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << " " << (*row)["proxy_rating"] << std::endl;
                 proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
                 proxy->rating = to_int((*row)["proxy_rating"]);
 
@@ -253,7 +334,7 @@ void proxos::application::run()
         }
     };
 
-    //proxy_checker->refill_event += refill;
+    self->proxy_checker->refill_event += refill;
 
     nextgen::timer timer;
 

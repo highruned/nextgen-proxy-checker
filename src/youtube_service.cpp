@@ -56,8 +56,8 @@ void proxos::application::run()
 
     while(true)
     {
-        try
-        {
+       //try
+       //{
             if(timer.stop() > 1)
             {
                 timer.start();
@@ -68,11 +68,11 @@ void proxos::application::run()
             self->network_service.update();
 
             boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-        }
-        catch(boost::exception& e)
-        {
-            std::cout << "[proxos:application:run] " << "Unexpected exception caught in " << BOOST_CURRENT_FUNCTION << std::endl << boost::current_exception_diagnostic_information();
-        }
+        //}
+        //catch(boost::exception& e)
+        //{
+        //    std::cout << "[proxos:application:run] " << "Unexpected exception caught in " << BOOST_CURRENT_FUNCTION << std::endl << boost::current_exception_diagnostic_information();
+        //}
     }
 }
 

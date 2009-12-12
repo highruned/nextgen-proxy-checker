@@ -1271,7 +1271,7 @@ std::cout << "3" << std::endl;
 
                             if(self->timeout_ > 0)
                             {
-                                self->timer_.expires_from_now(boost::posix_time::seconds(5));
+                                self->timer_.expires_from_now(boost::posix_time::seconds(self->timeout_));
                                 self->timer_.async_wait(self->cancel_handler_);
                             }
 
@@ -1330,7 +1330,7 @@ std::cout << "3" << std::endl;
 
                             if(self->timeout_ > 0)
                             {
-                                self->timer_.expires_from_now(boost::posix_time::seconds(5));
+                                self->timer_.expires_from_now(boost::posix_time::seconds(self->timeout_));
                                 self->timer_.async_wait(self->cancel_handler_);
                             }
 
@@ -3284,6 +3284,107 @@ namespace nextgen
 
             NEXTGEN_SHARED_DATA(link, variables);
         };
+    }
+}
+
+namespace nextgen
+{
+    void exit(std::string const& message)
+    {
+        std::cout << message << std::endl;
+
+        exit(0);
+    }
+
+}
+
+namespace nextgen
+{
+    namespace content
+    {
+        class file_asset
+        {
+            private: struct variables
+            {
+                variables()
+                {
+
+                }
+
+                ~variables()
+                {
+
+                }
+
+                uint32_t id;
+                string data;
+            };
+
+            NEXTGEN_SHARED_DATA(file_asset, variables);
+        };
+
+        class service
+        {
+            public: template<typename element_type> element_type get_asset(string const& name)
+            {
+                auto self = *this;
+
+                if(self->asset_list.size() > 0)
+                {
+                    if(auto i = self->asset_list.find(name) != self->asset_list.end())
+                    {
+                        return self->asset_list[name];
+                    }
+                }
+
+                std::ifstream f;
+                f.open(name, std::ios::in | std::ios::binary);
+
+                if(f.is_open())
+                {
+                    // get length of file:
+                    f.seekg(0, std::ios::end);
+                    size_t length = f.tellg();
+                    f.seekg(0, std::ios::beg);
+
+                    element_type e;
+
+                    // read data as a block:
+                    char data[length];
+                    f.read(data, length);
+
+                    f.close();
+
+                    e->data = string(data);
+
+                    return e;
+                }
+                else
+                {
+                    exit("File not open.");
+                }
+
+
+            }
+
+            private: struct variables
+            {
+                variables()
+                {
+
+                }
+
+                ~variables()
+                {
+
+                }
+
+                hash_map<string, file_asset> asset_list;
+            };
+
+            NEXTGEN_SHARED_DATA(service, variables);
+        };
+
     }
 }
 
