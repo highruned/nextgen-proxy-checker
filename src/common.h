@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #include <asio.hpp>
 #include <asio/ssl.hpp>
@@ -1366,12 +1367,6 @@ std::cout << "3" << std::endl;
                                         std::cout << "5" << std::endl;
                                         successful_handler();
                                 }
-                                else if(error == asio::error::eof)
-                                {
-                                    std::cout << "EOF" << std::endl;
-
-                                    successful_handler();
-                                }
                                 else
                                 {
                                     if(DEBUG_MESSAGES4)
@@ -1430,12 +1425,6 @@ std::cout << "3" << std::endl;
                                 {
                                         std::cout << "5" << std::endl;
                                         successful_handler();
-                                }
-                                else if(error == asio::error::eof)
-                                {
-                                    std::cout << "EOF" << std::endl;
-
-                                    successful_handler();
                                 }
                                 else
                                 {
@@ -1982,7 +1971,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         public: typedef base_event_type accept_failure_event_type;
                         public: typedef float keep_alive_threshold_type;
 
-                        public: virtual void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        public: virtual void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
 
@@ -1995,7 +1984,21 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->connect_failure_event;
 
-                            self->transport_layer_.connect(host_, port_,
+                            std::string host;
+                            uint32_t port;
+
+                            if(proxy != 0)
+                            {
+                                host = proxy.get_host();
+                                port = proxy.get_port();
+                            }
+                            else
+                            {
+                                host = host_;
+                                port = port_;
+                            }
+
+                            self->transport_layer_.connect(host, port,
                             [=]
                             {
                                 if(self->proxy == "socks4")
@@ -2010,7 +2013,9 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                                     //asio::buffer b(request.bytes);
 
-unsigned long ulAddr = inet_addr(host_.c_str());
+hostent* host_entry = gethostbyname(host_.c_str());
+std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);// inet_addr(inet_ntoa(a));
+//unsigned long ulAddr = inet_addr(host_.c_str());
 
                                     byte_array r1;
 
@@ -2022,10 +2027,10 @@ unsigned long ulAddr = inet_addr(host_.c_str());
                                     //r1 << (unsigned char)(((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() >> 8) & 0xff);
                                     //r1 << (unsigned char)((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() & 0xff);
                                     r1 << htons(port_);
-                                    r1 << ulAddr;//self->transport_layer_->socket_.remote_endpoint().address().to_v4().to_bytes();//04 01 00 50 ' .. sip .. ' 6e 6d 61 70 00
+                                    r1 << inet_addr(addr.c_str());//self->transport_layer_->socket_.remote_endpoint().address().to_v4().to_bytes();//04 01 00 50 ' .. sip .. ' 6e 6d 61 70 00
                                     //r1 << 1852662128;
-                                    //r1 << "blank";
-                                    r1 << (byte)0;
+                                    r1 << "PRO";
+                                    //r1 << (byte)0;
 
                                     std::cout << r1.to_string() << std::endl;
 

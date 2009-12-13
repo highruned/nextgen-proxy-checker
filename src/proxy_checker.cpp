@@ -232,7 +232,7 @@ class application : public nextgen::singleton<application>
         return false;
     }
 
-    public: void run();
+    public: void run(int argc, char* argv[]);
 
     private: struct variables
     {
@@ -256,7 +256,7 @@ class application : public nextgen::singleton<application>
 };
 
 
-void application::run()
+void application::run(int argc, char* argv[])
 {
     auto self = *this;
 
@@ -343,14 +343,16 @@ unsigned long ulAddr = inet_addr("24.128.21.23");
 
                                     exit(0);*/
 
-    proxos::proxy p1("24.128.21.23", 21505);//("71.56.194.245", 8226);//
-    //("24.128.21.23", 21505); //
-//("193.178.200.71", 1080);//
+    if(argc > 1)
+    {
+        proxos::proxy p1(argv[1], to_int(argv[2]));//("71.56.194.245", 8226);//
+        //("24.128.21.23", 21505); //
 
 
-// bad ("195.70.235.198", 10000); //("193.178.200.71", 1080);//
-//("85.90.84.132", 1080);//
-    self.check_proxy(p1);
+    // bad ("195.70.235.198", 10000); //("193.178.200.71", 1080);//
+    //("85.90.84.132", 1080);//("24.128.21.23", 21505);//("24.128.21.23", 21505);("85.90.84.132", 1080);
+        self.check_proxy(p1);
+    }
 
     nextgen::timer timer;
 
@@ -376,5 +378,5 @@ unsigned long ulAddr = inet_addr("24.128.21.23");
 
 int main(int argc, char* argv[])
 {
-    application::instance().run();
+    application::instance().run(argc, argv);
 }

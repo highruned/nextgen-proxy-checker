@@ -366,7 +366,7 @@ namespace proxos
 
             std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy->host << ":" << proxy->port << " (" << proxy->id << ")" << std::endl;
 
-            client.connect(proxy->host, proxy->port,
+            client.connect(self->host, self->port, nextgen::network::ipv4_address(proxy->host, proxy->port),
             [=]()
             {
                 if(DEBUG_MESSAGES2)
@@ -375,16 +375,15 @@ namespace proxos
                 message_type r1;
 
                 r1->method = "GET";
-                r1->url = "/";// + to_string(proxy->id);
+                r1->url = "/" + to_string(proxy->id);
 
                 r1->version = "1.1";
 
-                r1->header_list["Host"] = "www.whatismyip.com";//self->host + ":" + to_string(self->port);
-                r1->header_list["User-Agent"] = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";//"Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)";
-                //r1->header_list["PID"] = to_string(proxy->id);
+                r1->header_list["Host"] = self->host + ":" + to_string(self->port);
+                r1->header_list["User-Agent"] = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)"; //"Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";//
+                r1->header_list["PID"] = to_string(proxy->id);
                 r1->header_list["Keep-Alive"] = "300";
                 r1->header_list["Connection"] = "keep-alive";
-                r1->header_list["Cookie"] = "__utma=18138879.174906595.1252128888.1260695828.1260697634.22; __utmz=18138879.1260591598.19.17.utmcsr=google|utmccn=(organic)|utmcmd=organic|utmctr=my%20ip; ASPSESSIONIDSAASRRRD=CODMLIDCBDCFIPJNKJJBPMPP; __utmc=18138879; ASPSESSIONIDQABRRQRD=KKLIEGFCPHMILJMPPJJLJKII; ASPSESSIONIDSABTRRRD=NBLFLJECCEBMOHBFDKNMFBDB; ASPSESSIONIDSCBTRQRD=MKLHIKFCLCHCNGEGCGLAHAKJ";
 
                 proxy.get_timer().start();
 
