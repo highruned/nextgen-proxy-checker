@@ -33,6 +33,7 @@
 //#include <typeinfo.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <netinet/in.h>
 
 #include <asio.hpp>
 #include <asio/ssl.hpp>
@@ -244,7 +245,6 @@ namespace nextgen
     #endif
 
 
-
     void usleep(size_t ms)
     {
         boost::this_thread::sleep(boost::posix_time::milliseconds(ms));
@@ -280,7 +280,8 @@ std::cout << length << std::endl;
 std::cout << length << std::endl;
             //bool little_endian = true;
 
-            if(self->little_endian)
+            if((self->little_endian && !self.is_little_endian())
+            || (!self->little_endian && self.is_little_endian()))
                 for(size_t i = length; i > 0; --i)
                     data_stream >> input[i-1];
             else
@@ -291,7 +292,7 @@ std::cout << length << std::endl;
         public: template<typename element_type> void write(element_type&);
         public: template<typename element_type> void write(element_type&&, size_t);
 
-        public: template<typename element_type> byte_array operator>>(element_type&& output)
+        public: template<typename element_type> byte_array operator>>(element_type&& output) const
         {
             auto self = *this;
 
@@ -300,7 +301,7 @@ std::cout << length << std::endl;
             return *this;
         }
 
-        public: template<typename element_type> byte_array operator<<(element_type&& input)
+        public: template<typename element_type> byte_array operator<<(element_type&& input) const
         {
             auto self = *this;
 
@@ -348,20 +349,85 @@ std::cout << length << std::endl;
 
             std::istream data_stream(&self->data);
 
+            std::string all("");
+
             return string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
         }
 
-        public: std::string debug()
+        public: std::string write_all(std::string const& all)
+        {
+            auto self = *this;
+
+            std::ostream data_stream(&self->data);
+
+            for(size_t i = 0, l = all.length(); i < l; ++i)
+                data_stream << all[i];
+        }
+
+        public: std::string to_string() const
         {
             auto self = *this;
 
             std::string output;
-/*
+
             char ch[3];
 
-            for(int i = 0, l = self->data.size(); i < l; ++i)
+
+
+            std::iostream data_stream(&self->data);
+
+/*
+
+std::vector<uint8_t> all;
+
+self->data.pubseekoff(0, std::ios_base::beg);
+
+std::streamsize l = self->data.in_avail();
+
+for(size_t i = 0; i < l; ++i)
+{
+    self->data.pubseekoff(i, std::ios_base::beg);
+
+    all.push_back((uint8_t)self->data.sgetc());
+}
+
+while(self->data.sgetc() != EOF)
+{
+    all.push_back((uint8_t)self->data.sbumpc());
+}*/
+
+
+
+std::vector<uint8_t> all;
+
+while(self->data.sgetc() != EOF)
+{
+    all.push_back((uint8_t)self->data.sbumpc());
+}
+
+
+            //std::cout.setf(std::ios::hex | std::ios::showbase);
+            //std::cout << &self->data << std::endl;
+            //std::cout.unsetf(std::ios::right | std::ios::hex | std::ios::showbase);
+
+            for(size_t i = 0, l = all.size(); i < l; ++i)
             {
-                sprintf(ch, "\\x%02x", self->data[i]);
+                sprintf(ch, "\\x%02x", (byte)all[i]);
+
+                output += ch;
+
+                self->data.sputc((byte)all[i]);
+            }
+
+
+
+            //data_stream.write(all, all.length());
+
+            //self.write_all(all);
+/*
+            for(int i = 0, l = input.size(); i < l; ++i)
+            {
+                sprintf(ch, "\\x%02x", input[i]);
 
                 output += ch;
             }*/
@@ -378,12 +444,12 @@ std::cout << length << std::endl;
 
         private: struct variables
         {
-            variables()
+            variables() : little_endian(false)
             {
 
             }
 
-            variables(byte_array& ba, size_t length)
+            variables(byte_array& ba, size_t length) : little_endian(false)
             {
                 // todo(daemn) fix this
                 std::ostream ostream(&this->data);
@@ -421,7 +487,8 @@ std::cout << "A" << length << std::endl;
 
         //bool little_endian = true;
 
-        if(self->little_endian)
+        if((self->little_endian && !self.is_little_endian())
+        || (!self->little_endian && self.is_little_endian()))
             for(size_t i = length; i > 0; --i)
                 data_stream << output[i-1];
         else
@@ -758,6 +825,35 @@ std::cout << "Z" << std::endl;
             NEXTGEN_SHARED_DATA(service, variables);
         };
 
+    }
+
+    void timeout(network::service network_service, std::function<void()> callback, uint32_t milliseconds)
+    {
+        if(milliseconds > 0)
+        {
+            boost::shared_ptr<asio::deadline_timer> timer(new asio::deadline_timer(network_service.get_service()));
+
+            timer->expires_from_now(boost::posix_time::milliseconds(milliseconds));
+
+            timer->async_wait([=](asio::error_code const& error)
+            {
+                if(error != asio::error::operation_aborted)
+                {
+                    timer->expires_at();
+
+                    callback();
+                }
+                std::cout << "timer" << std::endl;
+            });
+        }
+        else
+        {
+            callback();
+        }
+    }
+
+    namespace network
+    {
         namespace ip
         {
             namespace network
@@ -1023,10 +1119,6 @@ std::cout << "Z" << std::endl;
                             return self->socket_.is_open();
                         }
 
-
-
-
-
                         public: virtual void cancel() const
                         {
                             auto self = *this;
@@ -1141,6 +1233,10 @@ std::cout << "Z" << std::endl;
                                         if(!error)
                                         {
                                             successful_handler();
+                                        }
+                                        else if(endpoint_iterator != resolver_type::iterator())
+                                        {
+                                            std::cout << "ZZZZZZZZZZ" << std::endl;
                                         }
                                         else
                                         {
@@ -1270,6 +1366,12 @@ std::cout << "3" << std::endl;
                                         std::cout << "5" << std::endl;
                                         successful_handler();
                                 }
+                                else if(error == asio::error::eof)
+                                {
+                                    std::cout << "EOF" << std::endl;
+
+                                    successful_handler();
+                                }
                                 else
                                 {
                                     if(DEBUG_MESSAGES4)
@@ -1328,6 +1430,12 @@ std::cout << "3" << std::endl;
                                 {
                                         std::cout << "5" << std::endl;
                                         successful_handler();
+                                }
+                                else if(error == asio::error::eof)
+                                {
+                                    std::cout << "EOF" << std::endl;
+
+                                    successful_handler();
                                 }
                                 else
                                 {
@@ -1623,6 +1731,13 @@ std::cout << "3" << std::endl;
                                         header_list.erase(i);
                                     }
 
+                                    if((i = header_list.find("Keep-Alive")) != header_list.end())
+                                    {
+                                        raw_header_list += (*i).first + ": " + (*i).second  + "\r\n";
+
+                                        header_list.erase(i);
+                                    }
+
                                     if((i = header_list.find("Connection")) != header_list.end())
                                     {
                                         raw_header_list += (*i).first + ": " + (*i).second  + "\r\n";
@@ -1845,6 +1960,20 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         NEXTGEN_SHARED_DATA(message, variables);
                     };
 
+                    union socks4_request
+                    {
+                        struct
+                        {
+                            uint8_t version;
+                            uint8_t command;
+                            uint16_t destination_port;
+                            boost::array<uint8_t, 4> destination_address;
+                            uint8_t end_marker;
+                        } detail;
+
+                        boost::array<uint8_t, 9> bytes;
+                    };
+
                     template<typename transport_layer_type>
                     class layer : public layer_base<message>
                     {
@@ -1852,7 +1981,6 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
                         public: typedef float keep_alive_threshold_type;
-
 
                         public: virtual void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
@@ -1870,7 +1998,115 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             self->transport_layer_.connect(host_, port_,
                             [=]
                             {
-                                successful_handler();
+                                if(self->proxy == "socks4")
+                                {
+                                    //socks4_request request;
+
+                                    //request.detail.version = 4;
+                                    //request.detail.command = 1;
+                                    //request.detail.destination_port = htons(self->transport_layer_->socket_.remote_endpoint().port());
+                                    //request.detail.destination_address = self->transport_layer_->socket_.remote_endpoint().address().to_v4().to_bytes();
+                                    //request.detail.end_marker = 0;
+
+                                    //asio::buffer b(request.bytes);
+
+unsigned long ulAddr = inet_addr(host_.c_str());
+
+                                    byte_array r1;
+
+                                    r1 << (byte)4;
+                                    r1 << (byte)1;
+                                    //r1 << (byte)0;
+                                    //r1 << (byte)50;
+
+                                    //r1 << (unsigned char)(((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() >> 8) & 0xff);
+                                    //r1 << (unsigned char)((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() & 0xff);
+                                    r1 << htons(port_);
+                                    r1 << ulAddr;//self->transport_layer_->socket_.remote_endpoint().address().to_v4().to_bytes();//04 01 00 50 ' .. sip .. ' 6e 6d 61 70 00
+                                    //r1 << 1852662128;
+                                    //r1 << "blank";
+                                    r1 << (byte)0;
+
+                                    std::cout << r1.to_string() << std::endl;
+
+                                    self->transport_layer_.send(r1,
+                                    [=]()
+                                    {
+                                        std::cout << "sent socks4 request" << std::endl;
+
+                                        byte_array r2;
+
+                                        self->transport_layer_.receive(asio::transfer_at_least(8), r2,
+                                        [=]()
+                                        {
+                                            std::cout << "received socks4 response" << std::endl;
+
+                                            byte none;
+                                            byte status;
+
+                                            r2 >> none;
+                                            r2 >> status;
+
+                                            std::cout << r2.to_string() << std::endl;
+
+                                            switch(status)
+                                            {
+                                                case 0x5a:
+                                                {
+                                                    std::cout << "is valid socks4 response" << std::endl;
+
+                                                    successful_handler();
+                                                }
+                                                break;
+
+                                                case 0x5b:
+                                                {
+                                                    std::cout << "rejected socks4 response" << std::endl;
+
+                                                    failure_handler();
+                                                }
+                                                break;
+
+                                                case 0x5c:
+                                                {
+                                                    std::cout << "failed1 socks4 response" << std::endl;
+
+                                                    failure_handler();
+                                                }
+                                                break;
+
+                                                case 0x52:
+                                                {
+                                                    std::cout << "failed2 socks4 response" << std::endl;
+
+                                                    failure_handler();
+                                                }
+                                                break;
+
+                                                default:
+                                                {
+                                                    failure_handler();
+                                                }
+                                            }
+                                        },
+                                        [=]()
+                                        {
+                                            failure_handler();
+                                        });
+                                    },
+                                    [=]()
+                                    {
+                                        failure_handler();
+                                    });
+                                }
+                                else if(self->proxy == "socks5")
+                                {
+
+                                }
+                                else
+                                {
+                                    successful_handler();
+                                }
                             },
                             [=]
                             {
@@ -2013,8 +2249,6 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                 else
                                 // this http message just contains raw headers
                                 {
-
-
                                     if(response->raw_header_list.length() > 0)
                                         successful_handler(response);
                                     else
@@ -2024,9 +2258,6 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                         failure_handler();
                                     }
                                 }
-
-
-                                //self.receive(successful_handler, failure_handler);
                             },
                             [=]()
                             {
@@ -2046,8 +2277,6 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                             if(failure_handler == 0)
                                 failure_handler = self->accept_failure_event;
-
-
 
                             self->transport_layer_.accept(port_,
                             [=](transport_layer_type client)
@@ -2076,12 +2305,12 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                         private: struct variables
                         {
-                            variables(service_type service_) : transport_layer_(service_), keep_alive_threshold(0)
+                            variables(service_type service_) : transport_layer_(service_), keep_alive_threshold(0), proxy("")
                             {
 
                             }
 
-                            variables(transport_layer_type transport_layer_) : transport_layer_(transport_layer_), keep_alive_threshold(0)
+                            variables(transport_layer_type transport_layer_) : transport_layer_(transport_layer_), keep_alive_threshold(0), proxy("")
                             {
 
                             }
@@ -2104,6 +2333,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             timer keep_alive_timer;
                             transport_layer_type transport_layer_;
                             keep_alive_threshold_type keep_alive_threshold;
+                            string proxy;
                         };
 
                         NEXTGEN_SHARED_DATA(layer, variables);

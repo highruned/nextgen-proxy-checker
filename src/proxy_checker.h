@@ -356,6 +356,148 @@ namespace proxos
             });
         }
 
+        private: void connect(job_type job) const
+        {
+            auto self = *this;
+
+            auto client = job->client;
+            auto proxy = job->proxy;
+            auto callback = job->callback;
+
+            std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy->host << ":" << proxy->port << " (" << proxy->id << ")" << std::endl;
+
+            client.connect(proxy->host, proxy->port,
+            [=]()
+            {
+                if(DEBUG_MESSAGES2)
+                    std::cout << "[proxos:proxy_client] Connected to proxy " << proxy->host + ":" + to_string(proxy->port) << "." << std::endl;
+
+                message_type r1;
+
+                r1->method = "GET";
+                r1->url = "/";// + to_string(proxy->id);
+
+                r1->version = "1.1";
+
+                r1->header_list["Host"] = "www.whatismyip.com";//self->host + ":" + to_string(self->port);
+                r1->header_list["User-Agent"] = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";//"Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)";
+                //r1->header_list["PID"] = to_string(proxy->id);
+                r1->header_list["Keep-Alive"] = "300";
+                r1->header_list["Connection"] = "keep-alive";
+                r1->header_list["Cookie"] = "__utma=18138879.174906595.1252128888.1260695828.1260697634.22; __utmz=18138879.1260591598.19.17.utmcsr=google|utmccn=(organic)|utmcmd=organic|utmctr=my%20ip; ASPSESSIONIDSAASRRRD=CODMLIDCBDCFIPJNKJJBPMPP; __utmc=18138879; ASPSESSIONIDQABRRQRD=KKLIEGFCPHMILJMPPJJLJKII; ASPSESSIONIDSABTRRRD=NBLFLJECCEBMOHBFDKNMFBDB; ASPSESSIONIDSCBTRQRD=MKLHIKFCLCHCNGEGCGLAHAKJ";
+
+                proxy.get_timer().start();
+
+                client.send_and_receive(r1,
+                [=](message_type r2)
+                {
+                    if(DEBUG_MESSAGES2)
+                        std::cout << "[proxos:proxy_client] Client send/receive successful." << std::endl;
+
+                    std::cout << r2->raw_header_list << std::endl;
+                    std::cout << r2->content << std::endl;
+
+                    proxy.set_latency(proxy.get_timer().stop());
+
+                    // proxy can receive data
+                    if(r2->content.find("proxos") != std::string::npos)
+                    {
+                        if(client->proxy == "socks4")
+                            proxy->type = "socks4";
+
+                        // proxy can receive headers
+                        if(r2->header_list.find("Server") != r2->header_list.end()
+                            && r2->header_list["Server"] == "proxos"
+                            && r2->header_list.find("PID") != r2->header_list.end())
+                        {
+                            proxy.set_state(proxy_type::states::perfect);
+
+                            if(DEBUG_MESSAGES2)
+                                std::cout << "good proxy" << std::endl;
+                        }
+                        // proxy cannot receive headers
+                        else
+                        {
+                            proxy.set_state(proxy_type::states::bad_return_headers);
+
+                            if(DEBUG_MESSAGES2)
+                                std::cout << "goodish proxy - doesnt forward headers correctly - correct_headers = false" << std::endl;
+                        }
+                    }
+                    // proxy cannot receive data
+                    else
+                    {
+                        if(r2->content.find("CoDeeN") != std::string::npos)
+                        {
+                            proxy.set_state(proxy_type::states::codeen);
+                        }
+                        else
+                        {
+                            proxy.set_type("broken");
+
+                            proxy.set_state(proxy_type::states::bad_return_data);
+                        }
+                    }
+
+                    client.disconnect();
+
+                    --self->active_clients;
+
+                    self.remove_job(proxy.get_id());
+
+                    if(callback != 0)
+                        callback();
+                },
+                [=]()
+                {
+                    if(DEBUG_MESSAGES2)
+                        std::cout << "[proxos:proxy_client] Client send/receive failure." << std::endl;
+
+                    if(client->proxy == "http")
+                    {
+                        nextgen::timeout(self->network_service, [=]()
+                        {
+                            client->proxy = "socks4";
+
+                            self.connect(job);
+                        }, 5000);
+                    }
+                    //else if(client->proxy == "socks4")
+                    //{
+                    //    client->proxy = "socks5";
+
+                    //    self->connect(client);
+                    //}
+                    else
+                    {
+                        proxy.set_type("dead");
+
+                        proxy.set_state(proxy_type::states::cannot_send);
+
+                        --self->active_clients;
+
+                        self.remove_job(proxy.get_id());
+
+                        if(callback != 0)
+                            callback();
+                    }
+                });
+            },
+            [=]()
+            {
+                proxy.set_type("dead");
+
+                proxy.set_state(proxy_type::states::cannot_connect);
+
+                self.remove_job(proxy.get_id());
+
+                --self->active_clients;
+
+                if(callback != 0)
+                    callback();
+            });
+        }
+
         public: void update()
         {
             auto self = *this;
@@ -394,120 +536,8 @@ namespace proxos
 
                     ++self->active_clients;
 
-                    auto client = job->client;
-                    auto proxy = job->proxy;
-                    auto callback = job->callback;
-
-                    std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy.get_host() << ":" << proxy.get_port() << " (" << proxy.get_id() << ")" << std::endl;
-
-                    client.connect(proxy.get_host(), proxy.get_port(),
-                    [=]()
-                    {
-                        if(DEBUG_MESSAGES2)
-                            std::cout << "[proxos:proxy_client] Connected to proxy " << proxy.get_host() + ":" + to_string(proxy.get_port()) << "." << std::endl;
-
-                        message_type r1;
-
-                        r1->method = "GET";
-                        r1->url = "http://" + self->host + ":" + to_string(self->port) + "/" + to_string(proxy.get_id());
-
-                        r1->version = "1.1";
-
-                        r1->header_list["Host"] = self->host;
-                        r1->header_list["User-Agent"] = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)";
-                        r1->header_list["PID"] = to_string(proxy.get_id());
-                        r1->header_list["Keep-Alive"] = "300";
-                        r1->header_list["Proxy-Connection"] = "keep-alive";
-
-                        proxy.get_timer().start();
-
-                        client.send_and_receive(r1,
-                        [=](message_type r2)
-                        {
-                            if(DEBUG_MESSAGES2)
-                                std::cout << "[proxos:proxy_client] Client send/receive successful." << std::endl;
-
-                            std::cout << r2->raw_header_list << std::endl;
-                            std::cout << r2->content << std::endl;
-
-                            proxy.set_latency(proxy.get_timer().stop());
-
-                            // proxy can receive data
-                            if(r2->content.find("proxos") != std::string::npos)
-                            {
-                                // proxy can receive headers
-                                if(r2->header_list.find("Server") != r2->header_list.end()
-                                    && r2->header_list["Server"] == "proxos"
-                                    && r2->header_list.find("PID") != r2->header_list.end())
-                                {
-                                    proxy.set_state(proxy_type::states::perfect);
-
-                                    if(DEBUG_MESSAGES2)
-                                        std::cout << "good proxy" << std::endl;
-                                }
-                                // proxy cannot receive headers
-                                else
-                                {
-                                    proxy.set_state(proxy_type::states::bad_return_headers);
-
-                                    if(DEBUG_MESSAGES2)
-                                        std::cout << "goodish proxy - doesnt forward headers correctly - correct_headers = false" << std::endl;
-                                }
-                            }
-                            // proxy cannot receive data
-                            else
-                            {
-                                if(r2->content.find("CoDeeN") != std::string::npos)
-                                {
-                                    proxy.set_state(proxy_type::states::codeen);
-                                }
-                                else
-                                {
-                                    proxy.set_type("broken");
-
-                                    proxy.set_state(proxy_type::states::bad_return_data);
-                                }
-                            }
-
-                            client.disconnect();
-
-                            --self->active_clients;
-
-                            self.remove_job(proxy.get_id());
-
-                            if(callback != 0)
-                                callback();
-                        },
-                        [=]()
-                        {
-                            if(DEBUG_MESSAGES2)
-                                std::cout << "[proxos:proxy_client] Client send/receive failure." << std::endl;
-
-                            proxy.set_type("dead");
-
-                            proxy.set_state(proxy_type::states::cannot_send);
-
-                            --self->active_clients;
-
-                            self.remove_job(proxy.get_id());
-
-                            if(callback != 0)
-                                callback();
-                        });
-                    },
-                    [=]()
-                    {
-                        proxy.set_type("dead");
-
-                        proxy.set_state(proxy_type::states::cannot_connect);
-
-                        self.remove_job(proxy.get_id());
-
-                        --self->active_clients;
-
-                        if(callback != 0)
-                            callback();
-                    });
+                    job->client->proxy = "socks4";
+                    self.connect(job);
                 }
             });
         }
