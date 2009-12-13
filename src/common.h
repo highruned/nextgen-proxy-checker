@@ -243,6 +243,18 @@ namespace nextgen
     	typedef int process_information;
     #endif
 
+
+
+    void usleep(size_t ms)
+    {
+        boost::this_thread::sleep(boost::posix_time::milliseconds(ms));
+    }
+
+    void sleep(size_t s)
+    {
+        boost::this_thread::sleep(boost::posix_time::seconds(s));
+    }
+
     class byte_array
     {
         public: void reverse_bytes(byte* input, byte* output, size_t length)
@@ -1402,7 +1414,7 @@ std::cout << "3" << std::endl;
 
                         private: struct variables
                         {
-                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(120)
+                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(180)
                             {
 
                             }

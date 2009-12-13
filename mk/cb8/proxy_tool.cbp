@@ -2,12 +2,12 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="Proxy Checker" />
+		<Option title="Proxy Tool" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="Linux Debug">
-				<Option output="../../bin/proxy_checker" prefix_auto="1" extension_auto="1" />
+				<Option output="../../bin/proxy_tool" prefix_auto="1" extension_auto="1" />
 				<Option object_output="../../../../temp/proxos/debug" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -17,7 +17,7 @@
 				</Compiler>
 			</Target>
 			<Target title="Linux Release">
-				<Option output="../../bin/proxy_checker" prefix_auto="1" extension_auto="1" />
+				<Option output="../../bin/proxy_tool" prefix_auto="1" extension_auto="1" />
 				<Option object_output="../../../../temp/proxos/debug" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -58,8 +58,8 @@
 		<Unit filename="../../src/common.h" />
 		<Unit filename="../../src/gzip.h" />
 		<Unit filename="../../src/port_scanner.h" />
-		<Unit filename="../../src/proxy_checker.cpp" />
 		<Unit filename="../../src/proxy_checker.h" />
+		<Unit filename="../../src/proxy_tool.cpp" />
 		<Extensions>
 			<code_completion />
 			<debugger />

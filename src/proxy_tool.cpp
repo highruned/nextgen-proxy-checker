@@ -75,7 +75,6 @@ void application::run()
     {
         std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
     }
-
 }
 
 int main()

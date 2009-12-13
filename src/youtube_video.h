@@ -2,18 +2,33 @@
 #define PROXOS_YOUTUBE_VIDEO
 
 #include "common.h"
+#include "proxy_checker.h"
 
 namespace youtube
 {
     class video
     {
-        public: void view(nextgen::string video_id, nextgen::string user_agent, size_t max)
+        public: void view(nextgen::string video_id, nextgen::string user_agent, size_t max, proxos::proxy proxy = 0) const
         {
             auto self = *this;
 
             nextgen::network::http_client client(self->network_service);
 
-            client.connect("youtube.com", 80, [=]()
+            std::string host;
+            uint32_t port;
+
+            if(proxy != 0)
+            {
+                host = proxy->host;
+                port = proxy->port;
+            }
+            else
+            {
+                host = "youtube.com";
+                port = 80;
+            }
+
+            client.connect(host, port, [=]()
             {
                 std::cout << "[proxos:youtube] Connected." << std::endl;
 
@@ -38,7 +53,7 @@ namespace youtube
                     nextgen::network::http_message m2;
 
                     m2->method = "GET";
-                    m2->url = "/get_video_info?video_id=" + video_id;
+                    m2->url = "http://www.youtube.com/get_video_info?video_id=" + video_id;
                     m2->header_list["Host"] = "www.youtube.com";
                     m2->header_list["User-Agent"] = user_agent;
                     m2->header_list["Keep-Alive"] = "300";
@@ -64,7 +79,7 @@ namespace youtube
                         nextgen::network::http_message m3;
 
                         m3->method = "GET";
-                        m3->url = "/get_video?video_id=" + video_id + "&t=" + token + "&el=detailpage&ps=&fmt=5&noflv=1";
+                        m3->url = "http://www.youtube.com/get_video?video_id=" + video_id + "&t=" + token + "&el=detailpage&ps=&fmt=5&noflv=1";
                         m3->header_list["Host"] = "www.youtube.com";
                         m3->header_list["User-Agent"] = user_agent;
                         m3->header_list["Keep-Alive"] = "300";
@@ -83,8 +98,6 @@ namespace youtube
         public: void receive_download(nextgen::network::http_client client, nextgen::network::http_message m1) const
         {
             auto self = *this;
-
-
 
             if(self->view_count < self->view_max)
                 client.send_and_receive(m1, [=](nextgen::network::http_message r1)

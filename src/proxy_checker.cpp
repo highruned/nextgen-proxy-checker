@@ -116,158 +116,154 @@ class address_range
     }
 };
 
-
-namespace proxos
+class application : public nextgen::singleton<application>
 {
-	class application : public nextgen::singleton<application>
-	{
-	    public: typedef nextgen::network::service network_service_type;
+    public: typedef nextgen::network::service network_service_type;
 
-		public: void initialize()
-		{
-		    auto self = *this;
+    public: void initialize()
+    {
+        auto self = *this;
 
+    }
+
+    public: void check_proxy(proxos::proxy proxy, std::function<void()> callback = 0) const
+    {
+        auto self = *this;
+
+        std::cout << proxy->host << ":" << proxy->port << std::endl;
+
+        address a(proxy->host);
+
+        if(!a.is_valid())
+        {
+            std::cout << "INVALID PROXY ####################################" << std::endl;
+
+            proxy->check_delay = 365 * 24 * 60 * 60;
+
+            std::string query = "UPDATE proxies SET proxy_type = \"invalid\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
+
+            self->proxy_database.query(query);
+
+            if(callback != 0)
+                callback();
+
+            return;
         }
 
-        public: void check_proxy(proxy proxy, std::function<void()> callback = 0) const
+        if(self.proxy_is_banned(a))
+        // dont check proxy for another month
         {
-            auto self = *this;
+            std::cout << "BANNED PROXY ####################################" << std::endl;
 
-            std::cout << proxy->host << ":" << proxy->port << std::endl;
+            proxy->check_delay = 365 * 24 * 60 * 60;
 
-            address a(proxy->host);
+            std::string query = "UPDATE proxies SET proxy_type = \"banned\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
 
-            if(!a.is_valid())
+            self->proxy_database.query(query);
+
+            if(callback != 0)
+                callback();
+
+            return;
+        }
+
+
+
+        self->proxy_checker.check_proxy(proxy, [=]()
+        {
+            if(proxy->type == "dead")
             {
-                std::cout << "INVALID PROXY ####################################" << std::endl;
+                proxy->check_delay = 1 * 24 * 60 * 60;
+                proxy->rating -= 1;
+            }
+            else if(proxy->type == "broken")
+            {
+                proxy->check_delay = 1 * 24 * 60 * 60;
+                proxy->rating -= 1;
+            }
+            else if(proxy->type == "transparent")
+            {
+                proxy->check_delay = 6 * 60 * 60;
+                proxy->rating += 1;
+            }
+            else if(proxy->type == "anonymous")
+            {
+                proxy->check_delay = 6 * 60 * 60;
+                proxy->rating += 1;
+            }
+            else if(proxy->type == "elite")
+            {
+                proxy->check_delay = 6 * 60 * 60;
+                proxy->rating += 1;
+            }
+               else if(proxy->type == "socks4")
+            {
+                proxy->check_delay = 6 * 60 * 60;
+                proxy->rating += 1;
+            }
+            else if(proxy->type == "socks5")
+            {
+                proxy->check_delay = 6 * 60 * 60;
+                proxy->rating += 1;
+            }
+            else if(proxy->type == "codeen")
+            {
+                proxy->check_delay = 7 * 24 * 60 * 60;
+            }
+            // todo(daemn) check mysql table check table proxies.proxies; for status OK
+            {
+                std::string query = "UPDATE proxies SET proxy_type = \"" + proxy->type + "\", proxy_latency = " + to_string(proxy->latency) + ", proxy_state = " + to_string(proxy->state) + ", proxy_rating = " + to_string(proxy->rating) + ", proxy_last_checked = " + to_string(time(0)) + ", proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
 
-                proxy.set_check_delay("0001-00-00 00:00:00");
+                std::cout << query << " after " << to_string(proxy->latency) << " seconds. " << std::endl;
 
-                std::string query = "UPDATE proxies SET proxy_type = \"invalid\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
+                std::cout << "state: " << proxy->state << std::endl;
 
                 self->proxy_database.query(query);
-
-                if(callback != 0)
-                    callback();
-
-                return;
             }
 
-            if(self.proxy_is_banned(a))
-            // dont check proxy for another month
-            {
-                std::cout << "BANNED PROXY ####################################" << std::endl;
+            if(callback != 0)
+                callback();
+        });
+    }
 
-                proxy.set_check_delay("0000-01-00 00:00:00");
+    public: bool proxy_is_banned(address& a) const
+    {
+        auto self = *this;
 
-                std::string query = "UPDATE proxies SET proxy_type = \"banned\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
-
-                self->proxy_database.query(query);
-
-                if(callback != 0)
-                    callback();
-
-                return;
-            }
-
-
-
-            self->proxy_checker.check_proxy(proxy, [=]()
-            {
-                if(proxy.get_type() == "dead")
-                {
-                    proxy.set_check_delay("0000-00-01 00:00:00");
-                    proxy->rating -= 1;
-                }
-                else if(proxy.get_type() == "broken")
-                {
-                    proxy.set_check_delay("0000-00-01 00:00:00");
-                    proxy->rating -= 1;
-                }
-                else if(proxy.get_type() == "transparent")
-                {
-                    proxy.set_check_delay("0000-00-00 05:00:00");
-                    proxy->rating += 1;
-                }
-                else if(proxy.get_type() == "anonymous")
-                {
-                    proxy.set_check_delay("0000-00-00 05:00:00");
-                    proxy->rating += 1;
-                }
-                else if(proxy.get_type() == "elite")
-                {
-                    proxy.set_check_delay("0000-00-00 05:00:00");
-                    proxy->rating += 1;
-                }
-                   else if(proxy.get_type() == "socks4")
-                {
-                    proxy.set_check_delay("0000-00-00 05:00:00");
-                    proxy->rating += 1;
-                }
-                else if(proxy.get_type() == "socks5")
-                {
-                    proxy.set_check_delay("0000-00-00 05:00:00");
-                    proxy->rating += 1;
-                }
-                else if(proxy.get_type() == "codeen")
-                {
-                    proxy.set_check_delay("0000-00-07 00:00:00");
-                }
-                // todo(daemn) check mysql table check table proxies.proxies; for status OK
-                {
-                    std::string query = "UPDATE proxies SET proxy_type = \"" + proxy.get_type() + "\", proxy_latency = " + to_string(proxy->latency) + ", proxy_state = " + to_string(proxy->state) + ", proxy_rating = " + to_string(proxy->rating) + ", proxy_last_checked = NOW(), proxy_check_delay = \"" + proxy.get_check_delay() + "\" WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
-
-                    std::cout << query << " after " << to_string(proxy.get_latency()) << " seconds. " << std::endl;
-
-                    std::cout << "state: " << proxy.get_state() << std::endl;
-
-                    self->proxy_database.query(query);
-                }
-
-                if(callback != 0)
-                    callback();
-            });
+        for(auto i = self->banlist.begin(), l = self->banlist.end(); i != l; ++i)
+        {
+            if((*i).is_within_range(a))
+                return true;
         }
 
-        public: bool proxy_is_banned(address& a) const
+        return false;
+    }
+
+    public: void run();
+
+    private: struct variables
+    {
+        variables() : proxy_checker("www.proxyprobe.com", 8080, network_service)
         {
-            auto self = *this;
 
-            for(auto i = self->banlist.begin(), l = self->banlist.end(); i != l; ++i)
-            {
-                if((*i).is_within_range(a))
-                    return true;
-            }
-
-            return false;
         }
 
-		public: void run();
-
-        private: struct variables
+        ~variables()
         {
-            variables() : proxy_checker("www.proxyprobe.com", 8080, network_service)
-            {
 
-            }
+        }
 
-            ~variables()
-            {
+        network_service_type network_service;
+        nextgen::database::link proxy_database;
+        proxos::proxy_checker proxy_checker;
+        std::vector<address_range> banlist;
+    };
 
-            }
-
-            network_service_type network_service;
-            nextgen::database::link proxy_database;
-            proxos::proxy_checker proxy_checker;
-            std::vector<address_range> banlist;
-        };
-
-        NEXTGEN_SHARED_DATA(application, variables);
-	};
-}
+    NEXTGEN_SHARED_DATA(application, variables);
+};
 
 
-void proxos::application::run()
+void application::run()
 {
     auto self = *this;
 
@@ -299,39 +295,33 @@ void proxos::application::run()
         std::cout << "Attempting to load " << amount << " proxies..." << std::endl;
 
         static uint32_t start = 0;
-        static nextgen::timer timer;
 
-        if(start > 0 || timer.stop() > 5)
-        // load proxies if we're in the middle of processing the list or checking every 5 seconds for more
+        std::string query("SELECT proxy_host, proxy_port, proxy_id, proxy_rating FROM proxies WHERE proxy_last_checked < (" + to_string(time(0)) + " - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(start) + ", " + to_string(amount)); //ORDER BY proxy_rating DESC
+
+        std::cout << query << std::endl;
+
+        auto list = *self->proxy_database.get_row_list(query);
+
+        std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
         {
-            std::string query("SELECT proxy_host, proxy_port, proxy_id, proxy_rating FROM proxies WHERE proxy_last_checked < (NOW() - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(start) + ", " + to_string(amount)); //ORDER BY proxy_rating DESC
+            std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << " " << (*row)["proxy_rating"] << std::endl;
+            proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
+            proxy->rating = to_int((*row)["proxy_rating"]);
 
-            std::cout << query << std::endl;
+            // check the proxy against banlist
+            self.check_proxy(proxy);
+        });
 
-            auto list = *self->proxy_database.get_row_list(query);
+        start += amount;
 
-            std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
-            {
-                std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << " " << (*row)["proxy_rating"] << std::endl;
-                proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
-                proxy->rating = to_int((*row)["proxy_rating"]);
-
-                // check the proxy against banlist
-                self.check_proxy(proxy);
-            });
-
-            start += amount;
-
-            if(list.size() < amount)
-            // we've hit the end of the proxy list, loop back around and check for changes
-            {
-                start = 0;
-                amount = list.size();
-            }
-
-            std::cout << "Loaded " << amount << " proxies." << std::endl;
-            //proxy_checker.add_list(); //proxy_rating DESC, proxy_hits DESC, proxy_latency ASC,
+        if(list.size() < amount)
+        // we've hit the end of the proxy list, loop back around and check for changes
+        {
+            start = 0;
+            amount = list.size();
         }
+
+        std::cout << "Loaded " << amount << " proxies." << std::endl;
     };
 
     self->proxy_checker->refill_event += refill;
@@ -340,33 +330,25 @@ void proxos::application::run()
 
     while(true)
     {
-        //try
-        //{
+        if(timer.stop() > 1)
+        {
+            std::cout << "[proxos:application:run] Updating services..." << std::endl;
+            std::cout << "C" << self->proxy_checker->job_list.size() << std::endl;
+            std::cout << "D" << self->proxy_checker->server->client_list.size() << std::endl;
+            //std::cout << "e" << proxy_checker->client_count << std::endl;
 
-            if(timer.stop() > 1)
-            {
-                timer.start();
+            timer.start();
+        }
 
-                std::cout << "[proxos:application:run] Updating services..." << std::endl;
-                std::cout << "C" << self->proxy_checker->job_list.size() << std::endl;
-                std::cout << "D" << self->proxy_checker->server->client_list.size() << std::endl;
-                //std::cout << "e" << proxy_checker->client_count << std::endl;
-            }
+        self->proxy_checker.update();
 
-            self->proxy_checker.update();
+        self->network_service.update();
 
-            self->network_service.update();
-
-            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-        //}
-        //catch(boost::exception& e)
-        //{
-        //    std::cout << "[proxos:application:run] " << "Unexpected exception caught in " << BOOST_CURRENT_FUNCTION << std::endl << boost::current_exception_diagnostic_information();
-        //}
+        nextgen::usleep(10);
     }
 }
 
 int main()
 {
-    proxos::application::instance().run();
+    application::instance().run();
 }

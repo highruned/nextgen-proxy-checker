@@ -1,82 +1,83 @@
 #define FD_SETSIZE 65535//4096
 
-#include "common.h"
-#include "proxy_checker.h"
 #include "youtube_video.h"
 
-namespace proxos
+class application : public nextgen::singleton<application>
 {
-	class application : public nextgen::singleton<application>
-	{
-	    public: typedef nextgen::network::service network_service_type;
+    public: typedef nextgen::network::service network_service_type;
 
-		public: void initialize()
-		{
-		    auto self = *this;
+    public: void initialize()
+    {
+        auto self = *this;
+    }
+
+    public: void run();
+
+    private: struct variables
+    {
+        variables()
+        {
 
         }
 
-		public: void run();
-
-        private: struct variables
+        ~variables()
         {
-            variables()
-            {
 
-            }
+        }
 
-            ~variables()
-            {
+        network_service_type network_service;
+        nextgen::database::link proxy_database;
+    };
 
-            }
+    NEXTGEN_SHARED_DATA(application, variables);
+};
 
-            network_service_type network_service;
-        };
-
-        NEXTGEN_SHARED_DATA(application, variables);
-	};
-}
-
-void proxos::application::run()
+void application::run()
 {
     auto self = *this;
 
-    nextgen::string video_id = "vipprK5CnBo";
+    self->proxy_database.connect("localhost", "root", "swoosh", "proxies");
+
+    nextgen::string video_id = "-RNGDGxA230";
     nextgen::string user_agent = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
 
+    //proxos::proxy proxy("159.213.87.22", 80);
+
     youtube::video v1(self->network_service);
-    v1.view(video_id, user_agent, 200);
 
-    nextgen::database::link proxy_database;
+    std::string query("SELECT proxy_host, proxy_port FROM proxies WHERE proxy_type = \"elite\" OR proxy_type = \"anonymous\" OR proxy_type = \"transparent\" ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC"); //ORDER BY proxy_rating DESC
 
-    proxy_database.connect("localhost", "root", "swoosh", "proxies");
+    std::cout << query << std::endl;
+
+    auto list = *self->proxy_database.get_row_list(query);
+
+    std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
+    {
+        std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << std::endl;
+
+        proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]));
+
+        v1.view(video_id, user_agent, 1, proxy);
+    });
 
     nextgen::timer timer;
-    timer.start();
 
     while(true)
     {
-       //try
-       //{
-            if(timer.stop() > 1)
-            {
-                timer.start();
+        if(timer.stop() > 1)
+        {
+            std::cout << "[application:run] Updating services..." << std::endl;
 
-                std::cout << "[proxos:application:run] Updating services..." << std::endl;
-            }
+            timer.start();
+        }
 
-            self->network_service.update();
+        self->network_service.update();
 
-            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-        //}
-        //catch(boost::exception& e)
-        //{
-        //    std::cout << "[proxos:application:run] " << "Unexpected exception caught in " << BOOST_CURRENT_FUNCTION << std::endl << boost::current_exception_diagnostic_information();
-        //}
+        nextgen::usleep(10);
     }
 }
 
 int main()
 {
-    proxos::application::instance().run();
+    application::instance().run();
 }

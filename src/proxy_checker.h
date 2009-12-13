@@ -137,20 +137,6 @@ namespace proxos
             self->state = state;
 		}
 
-		public: std::string const& get_check_delay() const
-		{
-		    auto self = *this;
-
-		    return self->check_delay;
-		}
-
-		public: void set_check_delay(std::string const& check_delay) const
-		{
-		    auto self = *this;
-
-            self->check_delay = check_delay;
-		}
-
 
 		public: void from_row(nextgen::database::row row) const
 		{
@@ -166,13 +152,9 @@ namespace proxos
             variables(nextgen::database::row row)
             {
                 variables((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
-
-                //this->last_checked.from_string((*row)["proxy_last_checked"]);
-                //this->check_delay.from_string((*row)["proxy_check_delay"]);
-
             }
 
-            variables(host_type const& host = "undefined.com", port_type port = 0, id_type id = 0, type_type const& type = "", latency_type latency = 0) : rating(0), host(host), port(port), id(id), type(""), latency(0.0), state(0), check_delay("0000-00-00 10:00:00")
+            variables(host_type const& host = "undefined.com", port_type port = 0, id_type id = 0, type_type const& type = "", latency_type latency = 0) : rating(0), host(host), port(port), id(id), type(""), latency(0.0), state(0), check_delay(6 * 60 * 60)
             {
 
             }
@@ -191,7 +173,7 @@ namespace proxos
             timer_type timer;
             uint32_t state;
             //uint32_t type;
-            std::string check_delay;
+            uint32_t check_delay;
             //nextgen::timestamp last_checked;
             //nextgen::timestamp check_delay; // todo(daemn) rename to interval?
         };
@@ -201,21 +183,8 @@ namespace proxos
 
 }
 
-
-namespace nextgen
-{
-    namespace network
-    {
-
-
-    }
-
-}
-
-
 namespace proxos
 {
-
     class proxy_checker
     {
         class job_type
@@ -350,9 +319,7 @@ namespace proxos
                                     std::cout << "[proxos:proxy_server] Server response successful to " << proxy.get_host() << proxy.get_port() << std::endl;
 
                                 // set proxy property to successful send
-
                                 proxy.set_state(proxy_type::states::can_only_send);
-
 
                                 client.disconnect();
                             },
@@ -362,14 +329,12 @@ namespace proxos
                                     std::cout << "[proxos:proxy_server] Server response failure to " << proxy.get_host() << proxy.get_port() << std::endl;
 
                                 proxy.set_state(proxy_type::states::cannot_send_back);
-
-                                //proxy.set_type("broken");
                             });
                         }
                         else
                         {
-                                if(DEBUG_MESSAGES2)
-                                    std::cout << "[proxos:proxy_server] GAY PROXY" << std::endl;
+                            if(DEBUG_MESSAGES2)
+                                std::cout << "[proxos:proxy_server] GAY PROXY" << std::endl;
 
                             client.disconnect();
                         }
@@ -395,28 +360,30 @@ namespace proxos
         {
             auto self = *this;
 
-            if(self->timer.stop() >= 5)
-            // try to clean out old server clients every 5 seconds
+            if(self->timer.stop() >= 10)
+            // run every 10 seconds
             {
+                // try to clean out old server clients
                 self->server.clean();
 
+                // notify listeners we could use more jobs
+                if(self->active_clients < self->client_max)
+                {
+                    size_t before = self->job_list.size();
+
+                    size_t amount = self->client_max - self->job_list.size();
+
+                    if(amount > 0)
+                        self->refill_event(amount);
+
+                    size_t after = self->job_list.size();
+
+                    size_t total = after - before;
+
+                    size_t i = 0;
+                }
+
                 self->timer.start();
-            }
-
-            if(self->active_clients < self->client_max)
-            {
-                size_t before = self->job_list.size();
-
-                size_t amount = self->client_max - self->job_list.size();
-
-                if(amount > 0)
-                    self->refill_event(amount);
-
-                size_t after = self->job_list.size();
-
-                size_t total = after - before;
-
-                size_t i = 0;
             }
 
             std::for_each(self->job_list.begin(), self->job_list.end(), [=](job_type& job)
@@ -432,7 +399,6 @@ namespace proxos
                     auto callback = job->callback;
 
                     std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy.get_host() << ":" << proxy.get_port() << " (" << proxy.get_id() << ")" << std::endl;
-
 
                     client.connect(proxy.get_host(), proxy.get_port(),
                     [=]()
