@@ -1624,7 +1624,7 @@ std::cout << "3" << std::endl;
                                     default: self->status_description = "UNDEFINED"; break;
                                 }
 
-                                data_stream << "HTTP/" << self->version << ".x" << self->status_code << self->status_description << "\r\n";
+                                std::string response_header = std::string("HTTP/") + self->version + " " + self->status_code + " " + self->status_description;
 
                                 if(!self->header_list.empty())
                                 // header list already exists
@@ -1654,6 +1654,7 @@ std::cout << "3" << std::endl;
                                 if(DEBUG_MESSAGES4)
                                     std::cout << self->content << std::endl;
 
+                                data_stream << response_header + "\r\n";
                                 data_stream << self->raw_header_list + "\r\n";
                                 data_stream << self->content;
                             }
@@ -1792,7 +1793,6 @@ std::cout << "GARRRRR" << self->raw_header_list << std::endl;
 
                                     string::const_iterator start = line.begin();
                                     string::const_iterator end = line.end();
-
 
                                     // todo(daemn) fix line bug
                                     if(boost::regex_search(start, end, what, boost::regex("^HTTP\\/(.+?) ([0-9]+) (.+?)\r"), flags))

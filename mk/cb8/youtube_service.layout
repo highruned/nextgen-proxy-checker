@@ -4,10 +4,10 @@
 	<File name="../../src/common.h" open="1" top="0" tabpos="1">
 		<Cursor position="0" topLine="0" />
 	</File>
-	<File name="../../src/youtube_service.cpp" open="1" top="0" tabpos="2">
-		<Cursor position="955" topLine="33" />
+	<File name="../../src/youtube_service.cpp" open="1" top="0" tabpos="1">
+		<Cursor position="1258" topLine="28" />
 	</File>
-	<File name="../../src/youtube_video.h" open="1" top="0" tabpos="3">
-		<Cursor position="4038" topLine="0" />
+	<File name="../../src/youtube_video.h" open="1" top="0" tabpos="2">
+		<Cursor position="2184" topLine="92" />
 	</File>
 </CodeBlocks_layout_file>

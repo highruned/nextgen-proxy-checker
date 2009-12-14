@@ -300,13 +300,13 @@ namespace proxos
 
                             message_type r2;
 
-                            r2->version = "1.1";
+                            r2->version = "1.x";
                             r2->status_code = 200;
                             r2->header_list["Content-Type"] = "text/html";
-                            r2->header_list["Proxy-Connection"] = "close";
+                            //r2->header_list["Proxy-Connection"] = "close";
                             r2->header_list["Connection"] = "close";
                             r2->header_list["Server"] = "proxos";
-                            r2->header_list["PID"] = r1->header_list["PID"];
+                            //r2->header_list["PID"] = r1->header_list["PID"];
                             r2->content = "proxos";
 
                             if(DEBUG_MESSAGES2)
@@ -377,7 +377,7 @@ namespace proxos
                 r1->method = "GET";
                 r1->url = "/" + to_string(proxy->id);
 
-                r1->version = "1.1";
+                r1->version = "1.x";
 
                 r1->header_list["Host"] = self->host + ":" + to_string(self->port);
                 r1->header_list["User-Agent"] = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)"; //"Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";//
@@ -406,8 +406,7 @@ namespace proxos
 
                         // proxy can receive headers
                         if(r2->header_list.find("Server") != r2->header_list.end()
-                            && r2->header_list["Server"] == "proxos"
-                            && r2->header_list.find("PID") != r2->header_list.end())
+                            && r2->header_list["Server"] == "proxos")
                         {
                             proxy.set_state(proxy_type::states::perfect);
 

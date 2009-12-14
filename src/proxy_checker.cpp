@@ -319,38 +319,10 @@ void application::run(int argc, char* argv[])
 
     //self->proxy_checker->refill_event += refill;
 
-/*
-unsigned long ulAddr = inet_addr("24.128.21.23");
-
-                                    nextgen::byte_array r1;
-
-                                    r1 << (nextgen::byte)4;
-                                    r1 << (nextgen::byte)1;
-                                    //r1 << (byte)0;
-                                    //r1 << (byte)50;
-
-                                    //r1 << (unsigned char)(((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() >> 8) & 0xff);
-                                    //r1 << (unsigned char)((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() & 0xff);
-                                    r1 << htons(21505);
-                                    r1 << ulAddr;//self->transport_layer_->socket_.remote_endpoint().address().to_v4().to_bytes();//04 01 00 50 ' .. sip .. ' 6e 6d 61 70 00
-                                    //r1 << 1852662128;
-                                    //r1 << "blank";
-                                    r1 << (nextgen::byte)0;
-
-                                    std::cout << r1.to_string() << std::endl;
-
-                                    std::cout << r1.to_string() << std::endl;
-
-                                    exit(0);*/
-
-    if(argc > 1)
+    if(argc > 2)
     {
-        proxos::proxy p1(argv[1], to_int(argv[2]));//("71.56.194.245", 8226);//
-        //("24.128.21.23", 21505); //
+        proxos::proxy p1(argv[1], to_int(argv[2]));//("71.56.194.245", 8226);////("24.128.21.23", 21505); //// bad ("195.70.235.198", 10000); //("193.178.200.71", 1080);////("85.90.84.132", 1080);//("24.128.21.23", 21505);//("24.128.21.23", 21505);("85.90.84.132", 1080);
 
-
-    // bad ("195.70.235.198", 10000); //("193.178.200.71", 1080);//
-    //("85.90.84.132", 1080);//("24.128.21.23", 21505);//("24.128.21.23", 21505);("85.90.84.132", 1080);
         self.check_proxy(p1);
     }
 
