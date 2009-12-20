@@ -38,14 +38,14 @@ void application::run()
 
     self->proxy_database.connect("localhost", "root", "swoosh", "proxies");
 
-    nextgen::string video_id = "-RNGDGxA230";
+    nextgen::string video_id = "FF3ciqD9iks";
     nextgen::string user_agent = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
 
     //proxos::proxy proxy("159.213.87.22", 80);
 
     youtube::video v1(self->network_service);
 
-    std::string query("SELECT proxy_host, proxy_port FROM proxies WHERE proxy_type = \"elite\" OR proxy_type = \"anonymous\" OR proxy_type = \"transparent\" ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC"); //ORDER BY proxy_rating DESC
+    std::string query("SELECT proxy_host, proxy_port FROM proxies WHERE type_id = 4 AND state_id != 6 ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC"); //ORDER BY proxy_rating DESC
 
     std::cout << query << std::endl;
 
@@ -57,7 +57,7 @@ void application::run()
 
         proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]));
 
-        v1.view(video_id, user_agent, 1, proxy);
+        v1.view(video_id, user_agent, 250, proxy);
     });
 
     nextgen::timer timer;
@@ -66,14 +66,14 @@ void application::run()
     {
         if(timer.stop() > 1)
         {
-            std::cout << "[application:run] Updating services..." << std::endl;
+            //std::cout << "[application:run] Updating services..." << std::endl;
 
             timer.start();
         }
 
         self->network_service.update();
 
-        nextgen::usleep(10);
+        nextgen::sleep(0.01);
     }
 }
 

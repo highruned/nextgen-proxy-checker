@@ -21,6 +21,18 @@ namespace youtube
             {
                 host = proxy->host;
                 port = proxy->port;
+
+                switch(proxy->type)
+                {
+                    case proxos::proxy::types::transparent:
+                    case proxos::proxy::types::distorting:
+                    case proxos::proxy::types::anonymous:
+                        client->proxy = "http"; break;
+
+                    case proxos::proxy::types::socks4: client->proxy = "socks4"; break;
+                    case proxos::proxy::types::socks5: client->proxy = "socks5"; break;
+                    case proxos::proxy::types::socks4n5: client->proxy = "socks4"; break;
+                }
             }
             else
             {
@@ -28,7 +40,10 @@ namespace youtube
                 port = 80;
             }
 
-            client.connect(host, port, [=]()
+            std::string host2 = "youtube.com";
+            uint32_t port2 = 80;
+
+            client.connect(host2, port2, nextgen::network::ipv4_address(host, port), [=]()
             {
                 std::cout << "[proxos:youtube] Connected." << std::endl;
 
@@ -48,7 +63,11 @@ namespace youtube
                     std::cout << "c_length " << r1->content.length() << std::endl;
 
                     if(r1->status_code != 200)
+                    {
                         std::cout << "[proxos:youtube] Error receiving video page. " << r1->status_code << std::endl;
+
+                        return;
+                    }
 
                     nextgen::network::http_message m2;
 
@@ -58,7 +77,9 @@ namespace youtube
                     m2->header_list["User-Agent"] = user_agent;
                     m2->header_list["Keep-Alive"] = "300";
                     m2->header_list["Connection"] = "keep-alive";
-                    m2->header_list["Cookie"] = r1->header_list["Set-Cookie"];
+                    m2->header_list["Cookie"] = r1->header_list["set-cookie"];
+
+                    std::cout << "COOKIES: " << r1->header_list["set-cookie"] << std::endl;
 
                     client.send_and_receive(m2, [=](nextgen::network::http_message r2)
                     {
@@ -67,7 +88,11 @@ namespace youtube
                         std::cout << r2->content << std::endl;
 
                         if(r2->status_code != 200)
+                        {
                             std::cout << "[proxos:youtube] Error receiving video info. " << r2->status_code << std::endl;
+
+                            return;
+                        }
 
                         nextgen::string token = nextgen::regex_single_match("&token=(.+?)&thumbnail_url", r2->content);
 
@@ -84,7 +109,7 @@ namespace youtube
                         m3->header_list["User-Agent"] = user_agent;
                         m3->header_list["Keep-Alive"] = "300";
                         m3->header_list["Connection"] = "keep-alive";
-                        m3->header_list["Cookie"] = r1->header_list["Set-Cookie"];
+                        m3->header_list["Cookie"] = r1->header_list["set-cookie"];
 
                         self->view_count = 0;
                         self->view_max = max;
@@ -109,8 +134,9 @@ namespace youtube
 
                     ++self->view_count;
 
-                    self.receive_download(client, m1);
+                    std::cout << "[proxos::youtube] VIEWED " << self->view_count << " TIMES" << std::endl;
 
+                    self.receive_download(client, m1);
                 });
         }
 

@@ -2,7 +2,7 @@
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Linux Debug" />
 	<File name="../../src/common.h" open="0" top="0" tabpos="1">
-		<Cursor position="56351" topLine="1605" />
+		<Cursor position="7457" topLine="242" />
 	</File>
 	<File name="../../src/gzip.h" open="0" top="0" tabpos="3">
 		<Cursor position="3403" topLine="127" />
@@ -11,9 +11,9 @@
 		<Cursor position="1" topLine="0" />
 	</File>
 	<File name="../../src/proxy_checker.cpp" open="1" top="1" tabpos="1">
-		<Cursor position="5975" topLine="193" />
+		<Cursor position="6163" topLine="194" />
 	</File>
 	<File name="../../src/proxy_checker.h" open="0" top="0" tabpos="5">
-		<Cursor position="14389" topLine="405" />
+		<Cursor position="724" topLine="21" />
 	</File>
 </CodeBlocks_layout_file>

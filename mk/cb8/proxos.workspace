@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_workspace_file>
 	<Workspace title="Workspace">
-		<Project filename="youtube_service.cbp" />
-		<Project filename="../../../stokegame/server/mk/cb8/stokegame.cbp" />
+		<Project filename="youtube_service.cbp" active="1" />
 		<Project filename="proxy_tool.cbp" />
-		<Project filename="proxy_checker.cbp" active="1" />
+		<Project filename="proxy_checker.cbp" />
 	</Workspace>
 </CodeBlocks_workspace_file>

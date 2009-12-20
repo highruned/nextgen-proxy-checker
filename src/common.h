@@ -245,15 +245,16 @@ namespace nextgen
     	typedef int process_information;
     #endif
 
-
-    void usleep(size_t ms)
+    void sleep(float s)
     {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(ms));
-    }
-
-    void sleep(size_t s)
-    {
-        boost::this_thread::sleep(boost::posix_time::seconds(s));
+        if(s < 0)
+        {
+            boost::this_thread::sleep(boost::posix_time::milliseconds((uint32_t)(s * 1000)));
+        }
+        else if(s > 0)
+        {
+            boost::this_thread::sleep(boost::posix_time::seconds((uint32_t)s));
+        }
     }
 
     class byte_array
@@ -373,43 +374,14 @@ std::cout << length << std::endl;
 
             char ch[3];
 
-
-
             std::iostream data_stream(&self->data);
 
-/*
+            std::vector<byte> all;
 
-std::vector<uint8_t> all;
-
-self->data.pubseekoff(0, std::ios_base::beg);
-
-std::streamsize l = self->data.in_avail();
-
-for(size_t i = 0; i < l; ++i)
-{
-    self->data.pubseekoff(i, std::ios_base::beg);
-
-    all.push_back((uint8_t)self->data.sgetc());
-}
-
-while(self->data.sgetc() != EOF)
-{
-    all.push_back((uint8_t)self->data.sbumpc());
-}*/
-
-
-
-std::vector<uint8_t> all;
-
-while(self->data.sgetc() != EOF)
-{
-    all.push_back((uint8_t)self->data.sbumpc());
-}
-
-
-            //std::cout.setf(std::ios::hex | std::ios::showbase);
-            //std::cout << &self->data << std::endl;
-            //std::cout.unsetf(std::ios::right | std::ios::hex | std::ios::showbase);
+            while(self->data.sgetc() != EOF)
+            {
+                all.push_back((byte)self->data.sbumpc());
+            }
 
             for(size_t i = 0, l = all.size(); i < l; ++i)
             {
@@ -419,19 +391,6 @@ while(self->data.sgetc() != EOF)
 
                 self->data.sputc((byte)all[i]);
             }
-
-
-
-            //data_stream.write(all, all.length());
-
-            //self.write_all(all);
-/*
-            for(int i = 0, l = input.size(); i < l; ++i)
-            {
-                sprintf(ch, "\\x%02x", input[i]);
-
-                output += ch;
-            }*/
 
             return output;
         }
@@ -1624,7 +1583,7 @@ std::cout << "3" << std::endl;
                                     default: self->status_description = "UNDEFINED"; break;
                                 }
 
-                                std::string response_header = std::string("HTTP/") + self->version + " " + self->status_code + " " + self->status_description;
+                                std::string response_header = "HTTP/" + self->version + " " + to_string(self->status_code) + " " + self->status_description;
 
                                 if(!self->header_list.empty())
                                 // header list already exists
@@ -1649,10 +1608,11 @@ std::cout << "3" << std::endl;
                                 self->raw_header_list += "Content-Length: " + to_string(self->content.length()) + "\r\n";
 
                                 if(DEBUG_MESSAGES4)
-                                    std::cout << self->raw_header_list << std::endl;
-
-                                if(DEBUG_MESSAGES4)
+                                {
+                                    std::cout << response_header << "\r\n" << std::endl;
+                                    std::cout << self->raw_header_list << "\r\n" << std::endl;
                                     std::cout << self->content << std::endl;
+                                }
 
                                 data_stream << response_header + "\r\n";
                                 data_stream << self->raw_header_list + "\r\n";
@@ -1672,7 +1632,7 @@ std::cout << "3" << std::endl;
 
                                 header_list_type::iterator i, l;
 
-                                data_stream << self->method + " " + self->url + " " + "HTTP" + "/" + self->version + "\r\n";
+                                std::string request_header = self->method + " " + self->url + " " + "HTTP" + "/" + self->version;
 
                                 if(header_list.empty())
                                 // turn raw header string into a header list
@@ -1750,11 +1710,13 @@ std::cout << "3" << std::endl;
                                 }
 
                                 if(DEBUG_MESSAGES4)
-                                    std::cout << raw_header_list << std::endl;
-
-                                if(DEBUG_MESSAGES4)
+                                {
+                                    std::cout << request_header << "\r\n" << std::endl;
+                                    std::cout << raw_header_list << "\r\n" << std::endl;
                                     std::cout << content << std::endl;
+                                }
 
+                                data_stream << request_header + "\r\n";
                                 data_stream << raw_header_list + "\r\n";
                                 data_stream << content;
                             }
@@ -1836,12 +1798,23 @@ std::cout << "GARRRRR" << self->raw_header_list << std::endl;
                                     string::const_iterator start = self->raw_header_list.begin();
                                     string::const_iterator end = self->raw_header_list.end();
 
+                                    self->header_list["set-cookie"] = "";
+
                                     while(boost::regex_search(start, end, what, boost::regex("(.+?)\\: (.+?)\r\n"), flags))
                                     {
                                         if(what[1].length() > 0)
                                         {
                                             std::cout << "K: " << what[1] << ": " << what[2] << std::endl;
-                                            self->header_list[what[1]] = what[2];
+                                            std::string key = what[1];
+
+                                            boost::to_lower(key);
+
+                                            if(key == "set-cookie")
+                                            {
+                                                self->header_list[key] += what[2] + " ";
+                                            }
+                                            else
+                                                self->header_list[key] = what[2];
                                         }
 
                                         // update search position:
@@ -1884,7 +1857,6 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                 std::istream data_stream(&self->stream.get_buffer());
 
                                 self->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
-
 
                                 if(self->header_list.find("Content-Encoding") != self->header_list.end())
                                 {
@@ -1949,20 +1921,6 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         NEXTGEN_SHARED_DATA(message, variables);
                     };
 
-                    union socks4_request
-                    {
-                        struct
-                        {
-                            uint8_t version;
-                            uint8_t command;
-                            uint16_t destination_port;
-                            boost::array<uint8_t, 4> destination_address;
-                            uint8_t end_marker;
-                        } detail;
-
-                        boost::array<uint8_t, 9> bytes;
-                    };
-
                     template<typename transport_layer_type>
                     class layer : public layer_base<message>
                     {
@@ -1973,6 +1931,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                         public: virtual void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
+                            std::cout << "7" << std::endl;
                             auto self = *this;
 
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
@@ -1986,7 +1945,7 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
 
                             std::string host;
                             uint32_t port;
-
+std::cout << "8" << std::endl;
                             if(proxy != 0)
                             {
                                 host = proxy.get_host();
@@ -1998,42 +1957,38 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                 port = port_;
                             }
 
+                            self->transport_layer_ = transport_layer_type(self->transport_layer_->service_);
+
                             self->transport_layer_.connect(host, port,
                             [=]
                             {
+                                std::cout << "1" << std::endl;
+
                                 if(self->proxy == "socks4")
                                 {
-                                    //socks4_request request;
+                                    std::cout << "1b" << std::endl;
+                                    hostent* host_entry = gethostbyname(host_.c_str());
+                                    if(host_entry == NULL)
+                                    {
+                                        failure_handler();
 
-                                    //request.detail.version = 4;
-                                    //request.detail.command = 1;
-                                    //request.detail.destination_port = htons(self->transport_layer_->socket_.remote_endpoint().port());
-                                    //request.detail.destination_address = self->transport_layer_->socket_.remote_endpoint().address().to_v4().to_bytes();
-                                    //request.detail.end_marker = 0;
+                                        return;
+                                    }
 
-                                    //asio::buffer b(request.bytes);
+                                    std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);
+std::cout << "2" << std::endl;
 
-hostent* host_entry = gethostbyname(host_.c_str());
-std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);// inet_addr(inet_ntoa(a));
-//unsigned long ulAddr = inet_addr(host_.c_str());
 
                                     byte_array r1;
 
                                     r1 << (byte)4;
                                     r1 << (byte)1;
-                                    //r1 << (byte)0;
-                                    //r1 << (byte)50;
-
-                                    //r1 << (unsigned char)(((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() >> 8) & 0xff);
-                                    //r1 << (unsigned char)((unsigned short)self->transport_layer_->socket_.remote_endpoint().port() & 0xff);
                                     r1 << htons(port_);
-                                    r1 << inet_addr(addr.c_str());//self->transport_layer_->socket_.remote_endpoint().address().to_v4().to_bytes();//04 01 00 50 ' .. sip .. ' 6e 6d 61 70 00
-                                    //r1 << 1852662128;
+                                    r1 << inet_addr(addr.c_str());
                                     r1 << "PRO";
-                                    //r1 << (byte)0;
 
                                     std::cout << r1.to_string() << std::endl;
-
+std::cout << "5" << std::endl;
                                     self->transport_layer_.send(r1,
                                     [=]()
                                     {
@@ -2106,7 +2061,98 @@ std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);// inet_addr(i
                                 }
                                 else if(self->proxy == "socks5")
                                 {
+                                    byte_array r1;
+std::cout << "3" << std::endl;
+                                    r1 << (byte)5;
+                                    r1 << (byte)1;
+                                    r1 << (byte)0;
 
+                                    std::cout << r1.to_string() << std::endl;
+
+                                    self->transport_layer_.send(r1,
+                                    [=]()
+                                    {
+                                        std::cout << "sent socks5 request" << std::endl;
+
+                                        byte_array r2;
+
+                                        self->transport_layer_.receive(asio::transfer_at_least(2), r2,
+                                        [=]()
+                                        {
+                                            std::cout << "received socks5 response" << std::endl;
+
+                                            byte status;
+                                            byte status2;
+
+                                            r2 >> status;
+                                            r2 >> status2;
+
+                                            std::cout << r2.to_string() << std::endl;
+
+                                            if(status == 0x05 && status2 == 0x00)
+                                            {
+                                                hostent* host_entry = gethostbyname(host_.c_str());
+                                                std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);
+
+                                                if(host_entry == NULL)
+                                                {
+                                                    failure_handler();
+
+                                                    return;
+                                                }
+
+                                                byte_array r3;
+
+                                                r3 << (byte)5;
+                                                r3 << (byte)1;
+                                                r3 << (byte)0;
+                                                r3 << (byte)1;
+                                                r3 << inet_addr(addr.c_str());
+                                                r3 << htons(port_);
+
+                                                std::cout << r3.to_string() << std::endl;
+
+                                                self->transport_layer_.send(r3,
+                                                [=]()
+                                                {
+                                                    byte_array r4;
+
+                                                    self->transport_layer_.receive(asio::transfer_at_least(1), r4,
+                                                    [=]()
+                                                    {
+                                                        byte nothing;
+                                                        byte address_type;
+
+                                                        r4 << nothing;
+                                                        r4 << address_type;
+
+                                                        // todo(daemn) we've gotten this far, assume we're good.
+                                                        successful_handler();
+                                                    },
+                                                    [=]()
+                                                    {
+                                                        failure_handler();
+                                                    });
+                                                },
+                                                [=]()
+                                                {
+                                                    failure_handler();
+                                                });
+                                            }
+                                            else
+                                            {
+                                                failure_handler();
+                                            }
+                                        },
+                                        [=]()
+                                        {
+                                            failure_handler();
+                                        });
+                                    },
+                                    [=]()
+                                    {
+                                        failure_handler();
+                                    });
                                 }
                                 else
                                 {
@@ -2115,6 +2161,7 @@ std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);// inet_addr(i
                             },
                             [=]
                             {
+                                std::cout << "4" << std::endl;
                                 failure_handler();
                             });
                         }
@@ -2213,11 +2260,11 @@ std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);// inet_addr(i
                                 if(response->status_code != 0 || response->method == "POST")
                                 // this http message has content, and we need to know the length
                                 {
-                                    if(response->header_list.find("Content-Length") != response->header_list.end())
+                                    if(response->header_list.find("content-length") != response->header_list.end())
                                     {
-                                        std::cout << "VVVVVVVVVVVVV " << response->header_list["Content-Length"] << " VVVVVV " << response->header_list["Content-Length"].length() << std::endl;
+                                        std::cout << "VVVVVVVVVVVVV " << response->header_list["content-length"] << " VVVVVV " << response->header_list["Content-Length"].length() << std::endl;
 
-                                        auto content_length = to_int(response->header_list["Content-Length"]) - response->content.length();
+                                        auto content_length = to_int(response->header_list["content-length"]) - response->content.length();
 
                                         if(content_length == 0)
                                         {
@@ -2236,19 +2283,42 @@ std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);// inet_addr(i
                                             },
                                             [=]()
                                             {
-                                                std::cout << "failed to receive rest of length" << std::endl;
+                                                std::cout << "failed to receive rest of length but still gonna success" << std::endl;
 
-                                                failure_handler();
+                                                response.unpack_content();
+
+                                                successful_handler(response);
                                             });
                                         }
                                     }
                                     else
                                     {
-                                        std::cout << "No http content-length specified" << std::endl;
+                                        if(response->status_code == 204)
+                                        {
+                                            std::cout << "No http content-length specified due to 204" << std::endl;
 
-                                        self->transport_layer_.close();
+                                            response.unpack_content();
 
-                                        failure_handler();
+                                            successful_handler(response);
+                                        }
+                                        else
+                                        {
+                                            std::cout << "No http content-length specified so assuming its auto EOF" << std::endl;
+
+                                            self->transport_layer_.receive(asio::transfer_at_least(1), response->stream,
+                                            [=]()
+                                            {
+                                                response.unpack_content();
+
+                                                successful_handler(response);
+                                            },
+                                            [=]()
+                                            {
+                                                std::cout << "failed to receive after no content-length" << std::endl;
+
+                                                failure_handler();
+                                            });
+                                        }
                                     }
                                 }
                                 else

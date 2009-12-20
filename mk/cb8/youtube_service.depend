@@ -1,12 +1,12 @@
 # depslib dependency file v1.0
-1260675384 source:/home/daemn/projects/proxos/src/youtube_service.cpp
+1261345604 source:/home/daemn/projects/proxos/src/youtube_service.cpp
 	"youtube_video.h"
 
-1260676348 /home/daemn/projects/proxos/src/youtube_video.h
+1261347004 /home/daemn/projects/proxos/src/youtube_video.h
 	"common.h"
 	"proxy_checker.h"
 
-1260675837 /home/daemn/projects/proxos/src/common.h
+1261343224 /home/daemn/projects/proxos/src/common.h
 	<cstddef>
 	<cstdio>
 	<cmath>
@@ -34,6 +34,8 @@
 	<errno.h>
 	<sys/types.h>
 	<stdio.h>
+	<netinet/in.h>
+	<netdb.h>
 	<asio.hpp>
 	<asio/ssl.hpp>
 	<boost/iostreams/stream.hpp>
@@ -78,6 +80,6 @@
 1260177067 /home/daemn/projects/proxos/src/gzip.h
 	<zlib.h>
 
-1260650689 /home/daemn/projects/proxos/src/proxy_checker.h
+1261343566 /home/daemn/projects/proxos/src/proxy_checker.h
 	"common.h"
 

@@ -135,7 +135,7 @@ class application : public nextgen::singleton<application>
 
             proxy->check_delay = 365 * 24 * 60 * 60;
 
-            std::string query = "UPDATE proxies SET proxy_type = \"invalid\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
+            std::string query = "UPDATE proxies SET state_id = " + to_string(proxos::proxy::states::invalid) + ", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
 
             self->proxy_database.query(query);
 
@@ -152,7 +152,7 @@ class application : public nextgen::singleton<application>
 
             proxy->check_delay = 365 * 24 * 60 * 60;
 
-            std::string query = "UPDATE proxies SET proxy_type = \"banned\", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
+            std::string query = "UPDATE proxies SET state_id = " + to_string(proxos::proxy::states::banned) + ", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
 
             self->proxy_database.query(query);
 
@@ -164,48 +164,45 @@ class application : public nextgen::singleton<application>
 
         self->proxy_checker.check_proxy(proxy, [=]()
         {
-            if(proxy->type == "dead")
+            if(proxy->type == proxos::proxy::types::none)
             {
                 proxy->check_delay = 1 * 24 * 60 * 60;
                 proxy->rating -= 1;
             }
-            else if(proxy->type == "broken")
-            {
-                proxy->check_delay = 1 * 24 * 60 * 60;
-                proxy->rating -= 1;
-            }
-            else if(proxy->type == "transparent")
+            else if(proxy->type == proxos::proxy::types::transparent)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-            else if(proxy->type == "anonymous")
+            else if(proxy->type == proxos::proxy::types::anonymous)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-            else if(proxy->type == "elite")
+            else if(proxy->type == proxos::proxy::types::elite)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-               else if(proxy->type == "socks4")
+               else if(proxy->type == proxos::proxy::types::socks4)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-            else if(proxy->type == "socks5")
+            else if(proxy->type == proxos::proxy::types::socks5)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-            else if(proxy->type == "codeen")
+
+            if(proxy->state == proxos::proxy::states::codeen)
             {
                 proxy->check_delay = 7 * 24 * 60 * 60;
             }
+
             // todo(daemn) check mysql table check table proxies.proxies; for status OK
             {
-                std::string query = "UPDATE proxies SET proxy_type = \"" + proxy->type + "\", proxy_latency = " + to_string(proxy->latency) + ", proxy_state = " + to_string(proxy->state) + ", proxy_rating = " + to_string(proxy->rating) + ", proxy_last_checked = " + to_string(time(0)) + ", proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
+                std::string query = "UPDATE proxies SET type_id = " + to_string(proxy->type) + ", proxy_latency = " + to_string(proxy->latency) + ", state_id = " + to_string(proxy->state) + ", proxy_rating = " + to_string(proxy->rating) + ", proxy_last_checked = " + to_string(time(0)) + ", proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
 
                 std::cout << query << " after " << to_string(proxy->latency) << " seconds. " << std::endl;
 
@@ -289,7 +286,12 @@ void application::run(int argc, char* argv[])
 
         static uint32_t start = 0;
 
-        std::string query("SELECT proxy_host, proxy_port, proxy_id, proxy_rating FROM proxies WHERE proxy_last_checked < (" + to_string(time(0)) + " - proxy_check_delay) ORDER BY proxy_id LIMIT " + to_string(start) + ", " + to_string(amount)); //ORDER BY proxy_rating DESC
+        std::string query("SELECT proxy_host, state_id, type_id, proxy_port, proxy_id, proxy_rating "
+        "FROM proxies "
+        "WHERE proxy_last_checked < (" + to_string(time(0)) + " - proxy_check_delay) "
+        "AND state_id != " +  to_string(proxos::proxy::states::banned) + " AND state_id != " + to_string(proxos::proxy::states::invalid) + " AND state_id != " + to_string(proxos::proxy::states::codeen) + " "
+        "ORDER BY proxy_id "
+        "LIMIT " + to_string(start) + ", " + to_string(amount));
 
         std::cout << query << std::endl;
 
@@ -300,6 +302,8 @@ void application::run(int argc, char* argv[])
             std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << " " << (*row)["proxy_rating"] << std::endl;
             proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
             proxy->rating = to_int((*row)["proxy_rating"]);
+            proxy->state = to_int((*row)["state_id"]);
+            proxy->type = to_int((*row)["type_id"]);
 
             // check the proxy against banlist
             self.check_proxy(proxy);
@@ -317,11 +321,11 @@ void application::run(int argc, char* argv[])
         std::cout << "Loaded " << amount << " proxies." << std::endl;
     };
 
-    //self->proxy_checker->refill_event += refill;
+    self->proxy_checker->refill_event += refill;
 
     if(argc > 2)
     {
-        proxos::proxy p1(argv[1], to_int(argv[2]));//("71.56.194.245", 8226);////("24.128.21.23", 21505); //// bad ("195.70.235.198", 10000); //("193.178.200.71", 1080);////("85.90.84.132", 1080);//("24.128.21.23", 21505);//("24.128.21.23", 21505);("85.90.84.132", 1080);
+        proxos::proxy p1(argv[1], to_int(argv[2]));
 
         self.check_proxy(p1);
     }
@@ -335,7 +339,6 @@ void application::run(int argc, char* argv[])
             std::cout << "[proxos:application:run] Updating services..." << std::endl;
             std::cout << "C" << self->proxy_checker->job_list.size() << std::endl;
             std::cout << "D" << self->proxy_checker->server->client_list.size() << std::endl;
-            //std::cout << "e" << proxy_checker->client_count << std::endl;
 
             timer.start();
         }
@@ -344,7 +347,7 @@ void application::run(int argc, char* argv[])
 
         self->network_service.update();
 
-        nextgen::usleep(10);
+        nextgen::sleep(0.01);
     }
 }
 
