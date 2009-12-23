@@ -38,27 +38,40 @@ void application::run()
 
     self->proxy_database.connect("localhost", "root", "swoosh", "proxies");
 
-    nextgen::string video_id = "FF3ciqD9iks";
-    nextgen::string user_agent = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
-
-    //proxos::proxy proxy("159.213.87.22", 80);
+    nextgen::string video_id = "BlhlpNwUvCw";
 
     youtube::video v1(self->network_service);
 
-    std::string query("SELECT proxy_host, proxy_port FROM proxies WHERE type_id = 4 AND state_id != 6 ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC"); //ORDER BY proxy_rating DESC
+    std::string q1("SELECT * FROM agents");
 
-    std::cout << query << std::endl;
+    if(YOUTUBE_DEBUG_1)
+        std::cout << q1 << std::endl;
 
-    auto list = *self->proxy_database.get_row_list(query);
+    auto agent_list = *self->proxy_database.get_row_list(q1);
 
-    std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
     {
-        std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << std::endl;
+        std::string query("SELECT proxy_host, proxy_port, type_id FROM proxies WHERE proxy_id = 181294");//state_id = 8 ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC LIMIT 1,1");
 
-        proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]));
+        if(YOUTUBE_DEBUG_1)
+            std::cout << query << std::endl;
 
-        v1.view(video_id, user_agent, 250, proxy);
-    });
+        auto proxy_list = *self->proxy_database.get_row_list(query);
+
+        std::for_each(proxy_list.begin(), proxy_list.end(), [=](nextgen::database::row& row)
+        {
+            if(YOUTUBE_DEBUG_1)
+                std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << std::endl;
+
+            proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]));
+            proxy->type = to_int((*row)["type_id"]);
+
+            auto row2 = agent_list[nextgen::random(0, (int)agent_list.size()-1)];
+
+            proxos::agent agent((*row2)["agent_title"]);
+
+            v1.view(video_id, 250, proxy, agent);
+        });
+    }
 
     nextgen::timer timer;
 

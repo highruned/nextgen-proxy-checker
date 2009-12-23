@@ -3,9 +3,33 @@
 
 #include "common.h"
 
+bool PROXOS_DEBUG_1 = 1;
 
 namespace proxos
 {
+	class agent
+	{
+	    public: typedef agent this_type;
+	    public: typedef std::string title_type;
+
+        private: struct variables
+        {
+            variables(title_type const& title = "undefined") : title(title)
+            {
+
+            }
+
+            ~variables()
+            {
+
+            }
+
+            title_type title;
+        };
+
+        NEXTGEN_SHARED_DATA(agent, variables);
+	};
+
 	class proxy
 	{
 	    public: typedef proxy this_type;
@@ -130,7 +154,7 @@ namespace proxos
 		}
 
 
-		public: void from_row(nextgen::database::row row) const
+		public: void from_row(nextgen::database::row& row) const
 		{
 		    auto self = *this;
 
@@ -141,7 +165,7 @@ namespace proxos
 
         private: struct variables
         {
-            variables(nextgen::database::row row)
+            variables(nextgen::database::row& row)
             {
                 variables((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
             }
@@ -192,7 +216,6 @@ namespace proxos
                 {
                     if(callback == 0)
                         callback = []() { std::cout << "No callback." << std::endl; };
-
                 }
 
                 ~variables()
@@ -261,12 +284,14 @@ namespace proxos
 
             self->server.accept([=](client_type client)
             {
-                std::cout << "[proxos:proxy_server] Proxy server (port 8080) accepted HTTP client." << std::endl;
+                if(PROXOS_DEBUG_1)
+                    std::cout << "[proxos:proxy_server] Proxy server (port 8080) accepted HTTP client." << std::endl;
 
                 client.receive(
                 [=](message_type r1)
                 {
-                    std::cout << "[proxos:proxy_server] Received data from HTTP client." << std::endl;
+                    if(PROXOS_DEBUG_1)
+                        std::cout << "[proxos:proxy_server] Received data from HTTP client." << std::endl;
                     //  can use cookies, can
 
                     // proxy can send headers
@@ -301,13 +326,13 @@ namespace proxos
                             //r2->header_list["PID"] = r1->header_list["PID"];
                             r2->content = "my_data";
 
-                            if(DEBUG_MESSAGES2)
+                            if(PROXOS_DEBUG_1)
                                 std::cout << "[proxos:proxy_server] Server sending response to " << proxy.get_host() << ":" << proxy.get_port() << std::endl;
 
                             client.send(r2,
                             [=]()
                             {
-                                if(DEBUG_MESSAGES2)
+                                if(PROXOS_DEBUG_1)
                                     std::cout << "[proxos:proxy_server] Server response successful to " << proxy.get_host() << proxy.get_port() << std::endl;
 
                                 // set proxy property to successful send
@@ -317,7 +342,7 @@ namespace proxos
                             },
                             [=]()
                             {
-                                if(DEBUG_MESSAGES2)
+                                if(PROXOS_DEBUG_1)
                                     std::cout << "[proxos:proxy_server] Server response failure to " << proxy.get_host() << proxy.get_port() << std::endl;
 
                                 proxy.set_state(proxy_type::states::cannot_send_back);
@@ -326,7 +351,7 @@ namespace proxos
                         // special case for initial confirmation we're hooked up correctly
                         else if(to_int(r1->header_list["pid"]) == 0)
                         {
-                            if(DEBUG_MESSAGES2)
+                            if(PROXOS_DEBUG_1)
                                 std::cout << "[proxos:proxy_server] got confirmation" << std::endl;
 
                             message_type r2;
@@ -346,7 +371,7 @@ namespace proxos
                         }
                         else
                         {
-                            if(DEBUG_MESSAGES2)
+                            if(PROXOS_DEBUG_1)
                                 std::cout << "[proxos:proxy_server] GAY PROXY" << std::endl;
 
                             client.disconnect();
@@ -375,14 +400,15 @@ namespace proxos
         {
             auto self = *this;
 
-            std::cout << "[proxos:proxy_checker] Testing connection." << std::endl;
+            if(PROXOS_DEBUG_1)
+                std::cout << "[proxos:proxy_checker] Testing connection." << std::endl;
 
             nextgen::network::http_client client(self->network_service);
 
             client.connect(self->host, self->port, nextgen::network::ipv4_address(self->host, self->port),
             [=]()
             {
-                if(DEBUG_MESSAGES2)
+                if(PROXOS_DEBUG_1)
                     std::cout << "[proxos:proxy_checker] Connected to self." << std::endl;
 
                 message_type r1;
@@ -430,12 +456,27 @@ namespace proxos
             auto proxy = job->proxy;
             auto callback = job->callback;
 
-            std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy->host << ":" << proxy->port << " (" << proxy->id << ")" << std::endl;
+            if(PROXOS_DEBUG_1)
+                std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy->host << ":" << proxy->port << " (" << proxy->id << ")" << std::endl;
+
+std::cout << "proxy_type2: " << proxy->type << std::endl;
+
+            switch(proxy->type)
+            {
+                case proxy_type::types::transparent:
+                case proxy_type::types::distorting:
+                case proxy_type::types::anonymous:
+                    client->proxy = "http"; break;
+
+                case proxy_type::types::socks4: client->proxy = "socks4"; break;
+                case proxy_type::types::socks5: client->proxy = "socks5"; break;
+                case proxy_type::types::socks4n5: client->proxy = "socks4"; break;
+            }
 
             client.connect(self->host, self->port, nextgen::network::ipv4_address(proxy->host, proxy->port),
             [=]()
             {
-                if(DEBUG_MESSAGES2)
+                if(PROXOS_DEBUG_1)
                     std::cout << "[proxos:proxy_client] Connected to proxy " << proxy->host + ":" + to_string(proxy->port) << "." << std::endl;
 
                 message_type r1;
@@ -456,31 +497,26 @@ namespace proxos
                 client.send_and_receive(r1,
                 [=](message_type r2)
                 {
-                    if(DEBUG_MESSAGES2)
+                    if(PROXOS_DEBUG_1)
+                    {
                         std::cout << "[proxos:proxy_client] Client send/receive successful." << std::endl;
 
-                    std::cout << r2->raw_header_list << std::endl;
-                    std::cout << r2->content << std::endl;
+                        std::cout << r2->raw_header_list << std::endl;
+                        std::cout << r2->content << std::endl;
+                    }
 
                     proxy.set_latency(proxy.get_timer().stop());
 
                     // proxy can receive data
                     if(r2->content.find("my_data") != std::string::npos)
                     {
-                        if(client->proxy == "socks4")
-                            proxy->type = proxy_type::types::socks4;
-                        else if(client->proxy == "socks5")
-                            proxy->type = proxy_type::types::socks5;
-                        else if(client->proxy == "socks4n5")
-                            proxy->type = proxy_type::types::socks4n5;
-
                         // proxy can receive headers
                         if(r2->header_list.find("set-cookie") != r2->header_list.end()
-                            && r2->header_list["set-cookie"] == "my_cookie")
+                        && r2->header_list["set-cookie"].find("my_cookie") != std::string::npos)
                         {
                             proxy.set_state(proxy_type::states::perfect);
 
-                            if(DEBUG_MESSAGES2)
+                            if(PROXOS_DEBUG_1)
                                 std::cout << "good proxy" << std::endl;
                         }
                         // proxy cannot receive headers
@@ -488,23 +524,35 @@ namespace proxos
                         {
                             proxy.set_state(proxy_type::states::bad_return_headers);
 
-                            if(DEBUG_MESSAGES2)
+                            if(PROXOS_DEBUG_1)
                                 std::cout << "goodish proxy - doesnt forward headers correctly - correct_headers = false" << std::endl;
                         }
 
-                        if(job->proxy->type == proxy_type::types::socks4)
-                        // we want to know if this can also be used for socks5
+                        if(client->proxy == "socks4")
                         {
-                            // wait 5 seconds to try and avoid spam filter
-                            nextgen::timeout(self->network_service, [=]()
+                            if(proxy->type != proxy_type::types::socks4)
+                            // we don't want to check if it's also a socks5 proxy if we already know it's a socks4 proxy
                             {
-                                client->proxy = "socks4n5";
+                                proxy->type = proxy_type::types::socks4;
 
-                                self.connect(job);
-                            }, 5000);
+                                // we want to know if this can also be used for socks5
 
-                            return;
+                                // wait 5 seconds to try and avoid spam filter
+                                /*
+                                nextgen::timeout(self->network_service, [=]()
+                                {
+                                    client->proxy = "socks4n5";
+
+                                    self.connect(job);
+                                }, 5000);
+
+                                return;*/
+                            }
                         }
+                        else if(client->proxy == "socks5")
+                            proxy->type = proxy_type::types::socks5;
+                        else if(client->proxy == "socks4n5")
+                            proxy->type = proxy_type::types::socks4n5;
                     }
                     // proxy cannot receive data
                     else
@@ -530,7 +578,7 @@ namespace proxos
                 },
                 [=]()
                 {
-                    if(DEBUG_MESSAGES2)
+                    if(PROXOS_DEBUG_1)
                         std::cout << "[proxos:proxy_client] Client send/receive failure." << std::endl;
 
                     if(client->proxy == "http")
@@ -575,6 +623,7 @@ namespace proxos
                         // we know this isn't an socks4 proxy, so check the next type
                         {
                             // wait 5 seconds to try and avoid spam filter
+
                             nextgen::timeout(self->network_service, [=]()
                             {
                                 client->proxy = "socks5";

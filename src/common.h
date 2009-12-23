@@ -117,11 +117,11 @@
     public: boost::shared_ptr<data_type> const& operator->() const { return this->ng_data; }
 
 
-bool DEBUG_MESSAGES = 1;
-bool DEBUG_MESSAGES2 = 1;
-bool DEBUG_MESSAGES3 = 1;
-bool DEBUG_MESSAGES4 = 1;
-
+bool NEXTGEN_DEBUG_1 = 1;
+bool NEXTGEN_DEBUG_2 = 1;
+bool NEXTGEN_DEBUG_3 = 0;
+bool NEXTGEN_DEBUG_4 = 1;
+bool NEXTGEN_DEBUG_5 = 1;
 
 void find_and_replace(std::string& source, std::string const& find, std::string const& replace)
 {
@@ -160,7 +160,9 @@ int to_int(std::string element)
 
         if(boost::regex_search(start, end, what, boost::regex("([\\-0-9]+)"), flags))
         {
-            std::cout << "converting to int: " << what[1] << std::endl;
+            if(NEXTGEN_DEBUG_4)
+                std::cout << "converting to int: " << what[1] << std::endl;
+
             return boost::lexical_cast<int>(what[1]);
         }
         else
@@ -272,15 +274,13 @@ namespace nextgen
             std::istream data_stream(&self->data);
 
             length = length > 0 ? length : sizeof(element_type);
-std::cout << length << std::endl;
+
             memset((byte*)&output, 0, length);
 
             byte* input = (byte*)&output;
 
             if(length > self.length())
                 length = self.length();
-std::cout << length << std::endl;
-            //bool little_endian = true;
 
             if((self->little_endian && !self.is_little_endian())
             || (!self->little_endian && self.is_little_endian()))
@@ -356,7 +356,7 @@ std::cout << length << std::endl;
             return string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
         }
 
-        public: std::string write_all(std::string const& all)
+        public: void write_all(std::string const& all)
         {
             auto self = *this;
 
@@ -442,10 +442,8 @@ std::cout << length << std::endl;
         std::ostream data_stream(&self->data);
 
         length = length > 0 ? length : sizeof(element_type);
-std::cout << "A" << length << std::endl;
-        byte* output = (byte*)&input;
 
-        //bool little_endian = true;
+        byte* output = (byte*)&input;
 
         if((self->little_endian && !self.is_little_endian())
         || (!self->little_endian && self.is_little_endian()))
@@ -461,7 +459,7 @@ std::cout << "A" << length << std::endl;
     inline void byte_array::write(element_type& input)
     {
         auto self = *this;
-std::cout << "Z" << std::endl;
+
         self.write(input, 0);
     }
 
@@ -545,7 +543,8 @@ std::cout << "Z" << std::endl;
 		{
 			for(typename callback_list_type::const_iterator i = this->list.begin(), l = this->list.end(); i != l; ++i)
 			{
-			    std::cout << "CALLING CALLBACK" << std::endl;
+			    if(NEXTGEN_DEBUG_4)
+                    std::cout << "CALLING CALLBACK" << std::endl;
 
 				(*i)(element_list...);
 			}
@@ -803,7 +802,9 @@ std::cout << "Z" << std::endl;
 
                     callback();
                 }
-                std::cout << "timer" << std::endl;
+
+                if(NEXTGEN_DEBUG_4)
+                    std::cout << "timer" << std::endl;
             });
         }
         else
@@ -936,7 +937,9 @@ std::cout << "Z" << std::endl;
                                 self->accepter_.listen();
 
                                 // successfully binded port
-                                std::cout << "[nextgen:network:ip:transport:tcp:accepter] Successfully binded port " << port << "." << std::endl;
+                                if(NEXTGEN_DEBUG_4)
+                                    std::cout << "[nextgen:network:ip:transport:tcp:accepter] Successfully binded port " << port << "." << std::endl;
+
                                 self->port = port;
                             }
                             catch(std::exception& e)
@@ -1030,12 +1033,12 @@ std::cout << "Z" << std::endl;
                             {
                                 if(error == asio::error::operation_aborted)
                                 {
-                                    if(DEBUG_MESSAGES)
+                                    if(NEXTGEN_DEBUG_1)
                                         std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer cancelled (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
                                 }
                                 else
                                 {
-                                    if(DEBUG_MESSAGES)
+                                    if(NEXTGEN_DEBUG_1)
                                         std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer called back. Closing socket (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                                     // bugfix(daemn): read timer doesn't actually cancel
@@ -1083,7 +1086,7 @@ std::cout << "Z" << std::endl;
                         {
                             auto self = *this;
 
-                            if(DEBUG_MESSAGES)
+                            if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::cancel> Cancelling socket (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                             if(self->socket_.native() != asio::detail::invalid_socket)
@@ -1096,7 +1099,7 @@ std::cout << "Z" << std::endl;
                         {
                             auto self = *this;
 
-                            if(DEBUG_MESSAGES)
+                            if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::close> Closing socket normally. (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                             if(self->socket_.native() != asio::detail::invalid_socket)
@@ -1132,75 +1135,62 @@ std::cout << "Z" << std::endl;
                             self->network_layer_.set_host(host_);
                             self->network_layer_.set_port(port_);
 
-                            if(DEBUG_MESSAGES)
+                            if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::connect> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                             resolver_type::query query_(host_, port_ == 80 ? "http" : to_string(port_));
 
                             if(self->timeout_ > 0)
                             {
-                                if(DEBUG_MESSAGES)
+                                if(NEXTGEN_DEBUG_1)
                                     std::cout << "<socket::connect> create timer (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
-                                self->timer_.expires_from_now(boost::posix_time::seconds(self->timeout_));
+                                self->timer_.expires_from_now(boost::posix_time::seconds(30));
                                 self->timer_.async_wait(self->cancel_handler_);
                             }
 
-
                             self->resolver_.async_resolve(query_, [=](asio::error_code const& error, resolver_type::iterator endpoint_iterator)
                             {
-                                if(DEBUG_MESSAGES)
+                                if(NEXTGEN_DEBUG_1)
                                     std::cout << "<socket::connect handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
+                                if(self->timeout_ > 0)
+                                    self.cancel_timer();
 
                                 if(!error)
                                 {
-                                    if(DEBUG_MESSAGES)
+                                    if(NEXTGEN_DEBUG_1)
                                         std::cout << "<socket::connect handler> resolve success (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
-
                                     //todo(daemn) add additional endpoint connection tries
-
                                     asio::ip::tcp::endpoint endpoint = *endpoint_iterator;
 
-                                    ++endpoint_iterator;
+                                    //++endpoint_iterator;
 
-                                    if(DEBUG_MESSAGES)
+                                    if(NEXTGEN_DEBUG_1)
                                         std::cout << "<socket::connect handler> create timer (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                                     if(self->timeout_ > 0)
                                     {
-                                        self->timer_.expires_from_now(boost::posix_time::seconds(self->timeout_));
+                                        self->timer_.expires_from_now(boost::posix_time::seconds(30));
                                         self->timer_.async_wait(self->cancel_handler_);
                                     }
 
-
                                     self->socket_.async_connect(endpoint, [=](asio::error_code const& error)
                                     {
-                                        if(DEBUG_MESSAGES)
+                                        if(NEXTGEN_DEBUG_1)
                                             std::cout << "<socket::connect handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                                         if(self->timeout_ > 0)
                                             self.cancel_timer();
 
-                                        //if(!self.is_connected())
-                                        //{
-                                        //    failure_handler();
-
-                                        //    return;
-                                        //}
-
                                         if(!error)
                                         {
                                             successful_handler();
                                         }
-                                        else if(endpoint_iterator != resolver_type::iterator())
-                                        {
-                                            std::cout << "ZZZZZZZZZZ" << std::endl;
-                                        }
                                         else
                                         {
-                                            if(DEBUG_MESSAGES4)
+                                            if(NEXTGEN_DEBUG_4)
                                                 std::cout << "<socket::connect handler> Error: " << error.message() << std::endl;
 
                                             self.close();
@@ -1214,7 +1204,7 @@ std::cout << "Z" << std::endl;
                                     if(self->timeout_ > 0)
                                         self.cancel_timer();
 
-                                    if(DEBUG_MESSAGES4)
+                                    if(NEXTGEN_DEBUG_4)
                                         std::cout << "<socket::connect handler> Error: " << error.message() << std::endl;
 
                                     self.close();
@@ -1241,7 +1231,7 @@ std::cout << "Z" << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->send_failure_event;
 
-                            if(DEBUG_MESSAGES)
+                            if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::write> create timer (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                             if(self->timeout_ > 0)
@@ -1258,17 +1248,7 @@ std::cout << "Z" << std::endl;
                                 if(self->timeout_ > 0)
                                     self.cancel_timer();
 
-                                //if(!self.is_connected())
-                                //{
-                                //    if(DEBUG_MESSAGES)
-                                //        std::cout << "<socket::write handler> not connected (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
-
-                                //    failure_handler();
-//
-                                //    return;
-                                //}
-
-                                if(DEBUG_MESSAGES)
+                                if(NEXTGEN_DEBUG_1)
                                     std::cout << "<socket::write handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                                 if(!error)
@@ -1277,7 +1257,7 @@ std::cout << "Z" << std::endl;
                                 }
                                 else
                                 {
-                                    if(DEBUG_MESSAGES4)
+                                    if(NEXTGEN_DEBUG_4)
                                         std::cout << "<socket::write handler> Error: " << error.message() << std::endl;
 
                                     self.close();
@@ -1301,34 +1281,26 @@ std::cout << "Z" << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->receive_failure_event;
 
-                            if(DEBUG_MESSAGES)
+                            if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::receive> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                             auto on_read = [=](asio::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
-                                if(DEBUG_MESSAGES)
+                                if(NEXTGEN_DEBUG_1)
                                     std::cout << "<socket::receive handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                                 if(self->timeout_ > 0)
                                     self.cancel_timer();
-std::cout << "4" << std::endl;
-                                //if(!self.is_connected())
-                                //{
-                                //    failure_handler();
 
-                                //    return;
-                                //}
-std::cout << "3" << std::endl;
                                 if(!error)
                                 {
-                                        std::cout << "5" << std::endl;
-                                        successful_handler();
+                                    successful_handler();
                                 }
                                 else
                                 {
-                                    if(DEBUG_MESSAGES4)
+                                    if(NEXTGEN_DEBUG_4)
                                         std::cout << "<socket::receive handler> Error: " << error.message() << std::endl;
 
                                     self.close();
@@ -1360,34 +1332,26 @@ std::cout << "3" << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->receive_failure_event;
 
-                            if(DEBUG_MESSAGES)
+                            if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::receive> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                             auto on_read = [=](asio::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
-                                if(DEBUG_MESSAGES)
+                                if(NEXTGEN_DEBUG_1)
                                     std::cout << "<socket::receive handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
 
                                 if(self->timeout_ > 0)
                                     self.cancel_timer();
-std::cout << "4" << std::endl;
-                                //if(!self.is_connected())
-                                //{
-                                //    failure_handler();
 
-                                //    return;
-                                //}
-std::cout << "3" << std::endl;
                                 if(!error)
                                 {
-                                        std::cout << "5" << std::endl;
-                                        successful_handler();
+                                    successful_handler();
                                 }
                                 else
                                 {
-                                    if(DEBUG_MESSAGES4)
+                                    if(NEXTGEN_DEBUG_4)
                                         std::cout << "<socket::receive handler> Error: " << error.message() << std::endl;
 
                                     self.close();
@@ -1418,7 +1382,7 @@ std::cout << "3" << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->accept_failure_event;
 
-                            if(DEBUG_MESSAGES)
+                            if(NEXTGEN_DEBUG_1)
                                 std::cout << "[nextgen:network:ip:transport:tcp:socket:accept] " << std::endl;
 
                             this_type client(self.get_service());
@@ -1428,7 +1392,7 @@ std::cout << "3" << std::endl;
 
                             self->accepter_.accept(client.get_socket(), [=](asio::error_code const& error)
                             {
-                                if(DEBUG_MESSAGES)
+                                if(NEXTGEN_DEBUG_1)
                                     std::cout << "[nextgen:network:ip:transport:tcp:socket:accept] Trying to accept client..." << std::endl;
 
                                 if(!error)
@@ -1439,7 +1403,7 @@ std::cout << "3" << std::endl;
                                 }
                                 else
                                 {
-                                    if(DEBUG_MESSAGES4)
+                                    if(NEXTGEN_DEBUG_4)
                                         std::cout << "[nextgen:network:ip:transport:tcp:socket:accept] Error: " << error.message() << std::endl;
 
                                     failure_handler();
@@ -1479,7 +1443,6 @@ std::cout << "3" << std::endl;
                             {
 
                             }
-
 
                             event<send_successful_event_type> send_successful_event;
                             event<send_failure_event_type> send_failure_event;
@@ -1607,7 +1570,7 @@ std::cout << "3" << std::endl;
 
                                 self->raw_header_list += "Content-Length: " + to_string(self->content.length()) + "\r\n";
 
-                                if(DEBUG_MESSAGES4)
+                                if(NEXTGEN_DEBUG_4)
                                 {
                                     std::cout << response_header << "\r\n" << std::endl;
                                     std::cout << self->raw_header_list << "\r\n" << std::endl;
@@ -1709,7 +1672,7 @@ std::cout << "3" << std::endl;
                                         raw_header_list += "Content-Length: " + to_string(content.length()) + "\r\n";
                                 }
 
-                                if(DEBUG_MESSAGES4)
+                                if(NEXTGEN_DEBUG_4)
                                 {
                                     std::cout << request_header << "\r\n" << std::endl;
                                     std::cout << raw_header_list << "\r\n" << std::endl;
@@ -1725,7 +1688,9 @@ std::cout << "3" << std::endl;
                         public: void unpack_headers() const
                         {
                             auto self = *this;
-std::cout << "XXXXXX" << self->stream.get_buffer().in_avail() << std::endl;
+
+                            if(NEXTGEN_DEBUG_4)
+                                std::cout << "XXXXXX" << self->stream.get_buffer().in_avail() << std::endl;
 
                             if(self->stream.get_buffer().in_avail())
                             {
@@ -1733,7 +1698,10 @@ std::cout << "XXXXXX" << self->stream.get_buffer().in_avail() << std::endl;
 
                                 string line;
                                 std::getline(data_stream, line);
-std::cout << "UNPACKING: " << line << std::endl;
+
+                                if(NEXTGEN_DEBUG_3)
+                                    std::cout << "UNPACKING: " << line << std::endl;
+
                                 string data((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
                                 size_t header_end = data.find("\r\n\r\n");
@@ -1745,7 +1713,9 @@ std::cout << "UNPACKING: " << line << std::endl;
                                     boost::erase_head(data, header_end + 4);
                                 }
 
-std::cout << "GARRRRR" << self->raw_header_list << std::endl;
+                                if(NEXTGEN_DEBUG_3)
+                                    std::cout << "GARRRRR" << self->raw_header_list << std::endl;
+
                                 boost::regex_error paren(boost::regex_constants::error_paren);
 
                                 try
@@ -1759,7 +1729,9 @@ std::cout << "GARRRRR" << self->raw_header_list << std::endl;
                                     // todo(daemn) fix line bug
                                     if(boost::regex_search(start, end, what, boost::regex("^HTTP\\/(.+?) ([0-9]+) (.+?)\r"), flags))
                                     {
-                                        std::cout << "ZZZZZZZZZZ" << what[1] << what[2] << what[3] << std::endl;
+                                        if(NEXTGEN_DEBUG_3)
+                                            std::cout << "ZZZZZZZZZZ" << what[1] << what[2] << what[3] << std::endl;
+
                                         self->version = what[1];
                                         self->status_code = to_int(what[2]);
                                         self->status_description = what[3];
@@ -1768,16 +1740,17 @@ std::cout << "GARRRRR" << self->raw_header_list << std::endl;
                                     {
                                         if(boost::regex_search(start, end, what, boost::regex("^(.+?) (.+?) HTTP\\/(.+?)\r"), flags))
                                         {
-                                            std::cout << "YYYYYYYY " << what[1] << what[2] << what[3] << std::endl;
+                                            if(NEXTGEN_DEBUG_3)
+                                                std::cout << "YYYYYYYY " << what[1] << what[2] << what[3] << std::endl;
+
                                             self->method = what[1];
                                             self->path = what[2];
                                             self->version = what[3];
                                         }
                                         else
                                         {
-                                            std::cout << "Error unpacking HTTP header." << std::endl;
-
-                                            //return; //exit(0); // temp(daemn)
+                                            if(NEXTGEN_DEBUG_5)
+                                                std::cout << "Error unpacking HTTP header." << std::endl;
                                         }
                                     }
                                 }
@@ -1804,7 +1777,9 @@ std::cout << "GARRRRR" << self->raw_header_list << std::endl;
                                     {
                                         if(what[1].length() > 0)
                                         {
-                                            std::cout << "K: " << what[1] << ": " << what[2] << std::endl;
+                                            if(NEXTGEN_DEBUG_3)
+                                                std::cout << "K: " << what[1] << ": " << what[2] << std::endl;
+
                                             std::string key = what[1];
 
                                             boost::to_lower(key);
@@ -1848,9 +1823,13 @@ std::cout << "GARRRRR" << self->raw_header_list << std::endl;
                         public: void unpack_content() const
                         {
                             auto self = *this;
-std::cout << "LEN!! " << self->stream.get_buffer().in_avail() << std::endl;
-std::cout << "LEN2!! " << self->raw_header_list.length() << std::endl;
-std::cout << "LEN3!! " << self->raw_header_list << std::endl;
+
+                            if(NEXTGEN_DEBUG_4)
+                            {
+                                std::cout << "LEN!! " << self->stream.get_buffer().in_avail() << std::endl;
+                                std::cout << "LEN2!! " << self->raw_header_list.length() << std::endl;
+                                std::cout << "LEN3!! " << self->raw_header_list << std::endl;
+                            }
 
                             if(self->stream.get_buffer().in_avail())
                             {
@@ -1867,7 +1846,8 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                                             std::vector<char> buffer;
                                             std::string error;
 
-                                            std::cout << "compressed l: " << self->content.length() << std::endl;
+                                            if(NEXTGEN_DEBUG_4)
+                                                std::cout << "compressed l: " << self->content.length() << std::endl;
 
                                             if(inflate_gzip(self->content.data(), self->content.length(), buffer, 1024 * 1024, error))
                                             {
@@ -1929,9 +1909,19 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                         public: typedef base_event_type accept_failure_event_type;
                         public: typedef float keep_alive_threshold_type;
 
+                        public: virtual void reconnect(connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        {
+                            auto self = *this;
+
+                            if(NEXTGEN_DEBUG_5)
+                                std::cout << "[nextgen::network::http_client] reconnecting" << std::endl;
+
+                            self.disconnect();
+                            self.connect(self->host, self->port, self->proxy_address, successful_handler2, failure_handler2);
+                        }
+
                         public: virtual void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
-                            std::cout << "7" << std::endl;
                             auto self = *this;
 
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
@@ -1943,18 +1933,23 @@ std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->connect_failure_event;
 
+                            self->host = host_;
+                            self->port = port_;
+
                             std::string host;
                             uint32_t port;
-std::cout << "8" << std::endl;
+
                             if(proxy != 0)
                             {
                                 host = proxy.get_host();
                                 port = proxy.get_port();
+
+                                self->proxy_address = proxy;
                             }
                             else
                             {
-                                host = host_;
-                                port = port_;
+                                host = self->host;
+                                port = self->port;
                             }
 
                             self->transport_layer_ = transport_layer_type(self->transport_layer_->service_);
@@ -1962,12 +1957,15 @@ std::cout << "8" << std::endl;
                             self->transport_layer_.connect(host, port,
                             [=]
                             {
-                                std::cout << "1" << std::endl;
+                                if(NEXTGEN_DEBUG_4)
+                                    std::cout << "[nextgen::network::http_client] Connected" << std::endl;
+
+                                std::cout << "proxy type: " << self->proxy << std::endl;
 
                                 if(self->proxy == "socks4")
                                 {
-                                    std::cout << "1b" << std::endl;
-                                    hostent* host_entry = gethostbyname(host_.c_str());
+                                    hostent* host_entry = gethostbyname(self->host.c_str());
+
                                     if(host_entry == NULL)
                                     {
                                         failure_handler();
@@ -1976,30 +1974,31 @@ std::cout << "8" << std::endl;
                                     }
 
                                     std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);
-std::cout << "2" << std::endl;
-
 
                                     byte_array r1;
 
                                     r1 << (byte)4;
                                     r1 << (byte)1;
-                                    r1 << htons(port_);
+                                    r1 << htons(self->port);
                                     r1 << inet_addr(addr.c_str());
                                     r1 << "PRO";
 
-                                    std::cout << r1.to_string() << std::endl;
-std::cout << "5" << std::endl;
+                                    if(NEXTGEN_DEBUG_4)
+                                        std::cout << r1.to_string() << std::endl;
+
                                     self->transport_layer_.send(r1,
                                     [=]()
                                     {
-                                        std::cout << "sent socks4 request" << std::endl;
+                                        if(NEXTGEN_DEBUG_4)
+                                            std::cout << "sent socks4 request" << std::endl;
 
                                         byte_array r2;
 
                                         self->transport_layer_.receive(asio::transfer_at_least(8), r2,
                                         [=]()
                                         {
-                                            std::cout << "received socks4 response" << std::endl;
+                                            if(NEXTGEN_DEBUG_4)
+                                                std::cout << "received socks4 response" << std::endl;
 
                                             byte none;
                                             byte status;
@@ -2007,13 +2006,15 @@ std::cout << "5" << std::endl;
                                             r2 >> none;
                                             r2 >> status;
 
-                                            std::cout << r2.to_string() << std::endl;
+                                            if(NEXTGEN_DEBUG_4)
+                                                std::cout << r2.to_string() << std::endl;
 
                                             switch(status)
                                             {
                                                 case 0x5a:
                                                 {
-                                                    std::cout << "is valid socks4 response" << std::endl;
+                                                    if(NEXTGEN_DEBUG_4)
+                                                        std::cout << "is valid socks4 response" << std::endl;
 
                                                     successful_handler();
                                                 }
@@ -2021,7 +2022,8 @@ std::cout << "5" << std::endl;
 
                                                 case 0x5b:
                                                 {
-                                                    std::cout << "rejected socks4 response" << std::endl;
+                                                    if(NEXTGEN_DEBUG_4)
+                                                        std::cout << "rejected socks4 response" << std::endl;
 
                                                     failure_handler();
                                                 }
@@ -2029,7 +2031,8 @@ std::cout << "5" << std::endl;
 
                                                 case 0x5c:
                                                 {
-                                                    std::cout << "failed1 socks4 response" << std::endl;
+                                                    if(NEXTGEN_DEBUG_4)
+                                                        std::cout << "failed1 socks4 response" << std::endl;
 
                                                     failure_handler();
                                                 }
@@ -2037,7 +2040,8 @@ std::cout << "5" << std::endl;
 
                                                 case 0x52:
                                                 {
-                                                    std::cout << "failed2 socks4 response" << std::endl;
+                                                    if(NEXTGEN_DEBUG_4)
+                                                        std::cout << "failed2 socks4 response" << std::endl;
 
                                                     failure_handler();
                                                 }
@@ -2062,24 +2066,27 @@ std::cout << "5" << std::endl;
                                 else if(self->proxy == "socks5")
                                 {
                                     byte_array r1;
-std::cout << "3" << std::endl;
+
                                     r1 << (byte)5;
                                     r1 << (byte)1;
                                     r1 << (byte)0;
 
-                                    std::cout << r1.to_string() << std::endl;
+                                    if(NEXTGEN_DEBUG_4)
+                                        std::cout << r1.to_string() << std::endl;
 
                                     self->transport_layer_.send(r1,
                                     [=]()
                                     {
-                                        std::cout << "sent socks5 request" << std::endl;
+                                        if(NEXTGEN_DEBUG_4)
+                                            std::cout << "sent socks5 request" << std::endl;
 
                                         byte_array r2;
 
                                         self->transport_layer_.receive(asio::transfer_at_least(2), r2,
                                         [=]()
                                         {
-                                            std::cout << "received socks5 response" << std::endl;
+                                            if(NEXTGEN_DEBUG_4)
+                                                std::cout << "received socks5 response" << std::endl;
 
                                             byte status;
                                             byte status2;
@@ -2087,11 +2094,12 @@ std::cout << "3" << std::endl;
                                             r2 >> status;
                                             r2 >> status2;
 
-                                            std::cout << r2.to_string() << std::endl;
+                                            if(NEXTGEN_DEBUG_4)
+                                                std::cout << r2.to_string() << std::endl;
 
                                             if(status == 0x05 && status2 == 0x00)
                                             {
-                                                hostent* host_entry = gethostbyname(host_.c_str());
+                                                hostent* host_entry = gethostbyname(self->host.c_str());
                                                 std::string addr = inet_ntoa(*(in_addr*)*host_entry->h_addr_list);
 
                                                 if(host_entry == NULL)
@@ -2108,9 +2116,10 @@ std::cout << "3" << std::endl;
                                                 r3 << (byte)0;
                                                 r3 << (byte)1;
                                                 r3 << inet_addr(addr.c_str());
-                                                r3 << htons(port_);
+                                                r3 << htons(self->port);
 
-                                                std::cout << r3.to_string() << std::endl;
+                                                if(NEXTGEN_DEBUG_4)
+                                                    std::cout << r3.to_string() << std::endl;
 
                                                 self->transport_layer_.send(r3,
                                                 [=]()
@@ -2161,7 +2170,6 @@ std::cout << "3" << std::endl;
                             },
                             [=]
                             {
-                                std::cout << "4" << std::endl;
                                 failure_handler();
                             });
                         }
@@ -2199,7 +2207,8 @@ std::cout << "3" << std::endl;
                             {
                                 request_->stream.get_buffer(); // bugfix(daemn)
 
-                                std::cout << "http message sent, now receiving" << std::endl;
+                                if(NEXTGEN_DEBUG_4)
+                                    std::cout << "http message sent, now receiving" << std::endl;
 
                                 self.receive(successful_handler, failure_handler);
                             },
@@ -2248,13 +2257,15 @@ std::cout << "3" << std::endl;
                             {
                                 response.unpack_headers();
 
-
-                                std::cout << "Z: " << response->raw_header_list << std::endl;
+                                if(NEXTGEN_DEBUG_3)
+                                    std::cout << "Z: " << response->raw_header_list << std::endl;
 
                                 if(response->stream.get_buffer().in_avail())
                                 {
                                     response.unpack_content();
-                                std::cout << "Y: " << response->content << std::endl;
+
+                                    if(NEXTGEN_DEBUG_3)
+                                        std::cout << "Y: " << response->content << std::endl;
                                 }
 
                                 if(response->status_code != 0 || response->method == "POST")
@@ -2262,7 +2273,8 @@ std::cout << "3" << std::endl;
                                 {
                                     if(response->header_list.find("content-length") != response->header_list.end())
                                     {
-                                        std::cout << "VVVVVVVVVVVVV " << response->header_list["content-length"] << " VVVVVV " << response->header_list["Content-Length"].length() << std::endl;
+                                        if(NEXTGEN_DEBUG_3)
+                                            std::cout << "VVVVVVVVVVVVV " << response->header_list["content-length"] << " VVVVVV " << response->header_list["Content-Length"].length() << std::endl;
 
                                         auto content_length = to_int(response->header_list["content-length"]) - response->content.length();
 
@@ -2272,7 +2284,8 @@ std::cout << "3" << std::endl;
                                         }
                                         else
                                         {
-                                            std::cout << "trying to receive length = " << content_length << std::endl;
+                                            if(NEXTGEN_DEBUG_4)
+                                                std::cout << "trying to receive length = " << content_length << std::endl;
 
                                             self->transport_layer_.receive(asio::transfer_at_least(content_length), response->stream,
                                             [=]()
@@ -2283,7 +2296,8 @@ std::cout << "3" << std::endl;
                                             },
                                             [=]()
                                             {
-                                                std::cout << "failed to receive rest of length but still gonna success" << std::endl;
+                                                if(NEXTGEN_DEBUG_5)
+                                                    std::cout << "failed to receive rest of length but still gonna success" << std::endl;
 
                                                 response.unpack_content();
 
@@ -2295,7 +2309,8 @@ std::cout << "3" << std::endl;
                                     {
                                         if(response->status_code == 204)
                                         {
-                                            std::cout << "No http content-length specified due to 204" << std::endl;
+                                            if(NEXTGEN_DEBUG_5)
+                                                std::cout << "No http content-length specified due to 204" << std::endl;
 
                                             response.unpack_content();
 
@@ -2303,7 +2318,8 @@ std::cout << "3" << std::endl;
                                         }
                                         else
                                         {
-                                            std::cout << "No http content-length specified so assuming its auto EOF" << std::endl;
+                                            if(NEXTGEN_DEBUG_5)
+                                                std::cout << "No http content-length specified so assuming its auto EOF" << std::endl;
 
                                             self->transport_layer_.receive(asio::transfer_at_least(1), response->stream,
                                             [=]()
@@ -2314,7 +2330,8 @@ std::cout << "3" << std::endl;
                                             },
                                             [=]()
                                             {
-                                                std::cout << "failed to receive after no content-length" << std::endl;
+                                                if(NEXTGEN_DEBUG_5)
+                                                    std::cout << "failed to receive after no content-length" << std::endl;
 
                                                 failure_handler();
                                             });
@@ -2347,7 +2364,7 @@ std::cout << "3" << std::endl;
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
-                            if(successful_handler == 0)
+                            if(successful_handler == null)
                                 successful_handler = self->accept_successful_event;
 
                             if(failure_handler == 0)
@@ -2380,12 +2397,12 @@ std::cout << "3" << std::endl;
 
                         private: struct variables
                         {
-                            variables(service_type service_) : transport_layer_(service_), keep_alive_threshold(0), proxy("")
+                            variables(service_type service_) : transport_layer_(service_), keep_alive_threshold(0), proxy(""), host(""), port(0)
                             {
 
                             }
 
-                            variables(transport_layer_type transport_layer_) : transport_layer_(transport_layer_), keep_alive_threshold(0), proxy("")
+                            variables(transport_layer_type transport_layer_) : transport_layer_(transport_layer_), keep_alive_threshold(0), proxy(""), host(""), port(0)
                             {
 
                             }
@@ -2409,6 +2426,9 @@ std::cout << "3" << std::endl;
                             transport_layer_type transport_layer_;
                             keep_alive_threshold_type keep_alive_threshold;
                             string proxy;
+                            ipv4_address proxy_address;
+                            string host;
+                            uint32_t port;
                         };
 
                         NEXTGEN_SHARED_DATA(layer, variables);
@@ -2615,52 +2635,25 @@ std::cout << "3" << std::endl;
                         {
                             auto self = *this;
 
-                           // std::ostream data_stream(&self->stream.get_buffer());
-
-                            //data_stream << self->content;
-
-                            std::cout << "packing" << std::endl;
-                            std::cout << self->data.length() << std::endl;
-
                             self->stream << self->id << self->data.length() << self->data;
-
-                            std::cout << "LEN: " << self->stream.length() << std::endl;
                         }
 
                         public: void unpack() const
                         {
                             auto self = *this;
 
-                            //if(self->stream.get_buffer().in_avail())
-                            //{
-                                //std::istream data_stream(&self->stream.get_buffer());
-std::cout << "11" << std::endl;
-self->stream->little_endian = true;
-                                //data = string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
-                                if(self->stream.available() >= 8)
+                            self->stream->little_endian = true;
+
+                            if(self->stream.available() >= 8)
+                            {
+                                self->stream >> self->id;
+                                self->stream >> self->length;
+
+                                if(self->stream.available() >= self->length)
                                 {
-                                    //byte message_id;
-                                    //byte message_length;
-                                    //byte messade_data[message_length];
-std::cout << "14" << std::endl;
-                                    self->stream >> self->id;
-                                    self->stream >> self->length;
-std::cout << "13" << std::endl;
-                                    if(self->stream.available() >= self->length)
-                                    {
-
-                                    //self->message_id = read_int32(message_id);
-                                    //self->message_length = read_int32(message_length);
-
-                                    //data_stream.get(messade_data, message_length);
-
-                                        self->data = byte_array(self->stream, self->length);
-                                    }
-
-                                    //successful_handler(message_id, message_data);
+                                    self->data = byte_array(self->stream, self->length);
                                 }
-                            //}
-std::cout << "12" << std::endl;
+                            }
                         }
 
                         private: struct variables
@@ -2695,7 +2688,6 @@ std::cout << "12" << std::endl;
                         {
                             auto self = *this;
                         }
-
 
                         public: virtual void disconnect() const
                         {
@@ -2862,7 +2854,7 @@ std::cout << "12" << std::endl;
                 auto self2 = *this;
                 auto self = self2;
 
-                if(DEBUG_MESSAGES2)
+                if(NEXTGEN_DEBUG_2)
                     std::cout << "[nextgen:network:server:accept] Waiting for client..." << std::endl;
 
                 auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
@@ -2879,7 +2871,7 @@ std::cout << "12" << std::endl;
                 {
                     auto self3 = self; // bugfix(daemn) wow..... no stack
 
-                    if(DEBUG_MESSAGES2)
+                    if(NEXTGEN_DEBUG_2)
                         std::cout << "[nextgen::network::server::accept] Successfully accepted client." << std::endl;
 
                     self->client_list.push_back(client);
@@ -2890,7 +2882,8 @@ std::cout << "12" << std::endl;
 
                     client->disconnect_event += [=]()
                     {
-                        std::cout << "ERASE SERVER CLIENT" << std::endl;
+                        if(NEXTGEN_DEBUG_4)
+                            std::cout << "ERASE SERVER CLIENT" << std::endl;
 
                         self3.remove_client(client);
                     };
@@ -2901,7 +2894,7 @@ std::cout << "12" << std::endl;
                 },
                 [=]()
                 {
-                    if(DEBUG_MESSAGES2)
+                    if(NEXTGEN_DEBUG_2)
                         std::cout << "[nextgen::network::server::accept] Failed to accept client." << std::endl;
 
                     failure_handler();
@@ -2926,7 +2919,8 @@ std::cout << "12" << std::endl;
                 {
                     client.disconnect();
 
-                    std::cout << "DISCONNECT SERVER CLIENT" << std::endl;
+                    if(NEXTGEN_DEBUG_4)
+                        std::cout << "DISCONNECT SERVER CLIENT" << std::endl;
                 });
 
                 self->client_list.reset();
@@ -2936,7 +2930,8 @@ std::cout << "12" << std::endl;
             {
                 auto self = *this;
 
-                std::cout << "[nextgen:server] Cleaning out expired clients.";
+                if(NEXTGEN_DEBUG_4)
+                    std::cout << "[nextgen:server] Cleaning out expired clients.";
 
                 std::remove_if(self->client_list.begin(), self->client_list.end(), [=](client_type& client) -> bool
                 {
@@ -2946,7 +2941,8 @@ std::cout << "12" << std::endl;
                     }
                     else
                     {
-                        std::cout << ".";
+                        if(NEXTGEN_DEBUG_4)
+                            std::cout << ".";
 
                         client.disconnect();
 
@@ -2954,7 +2950,8 @@ std::cout << "12" << std::endl;
                     }
                 });
 
-                std::cout << std::endl;
+                if(NEXTGEN_DEBUG_4)
+                    std::cout << std::endl;
             }
 
             private: struct variables
@@ -2986,7 +2983,7 @@ std::cout << "12" << std::endl;
         template<typename layer_type>
         void create_server(service service_, uint32_t port, std::function<void(layer_type)> successful_handler = 0, std::function<void()> failure_handler = 0)
         {
-            if(DEBUG_MESSAGES2)
+            if(NEXTGEN_DEBUG_2)
                 std::cout << "[nextgen:network:server:accept] Waiting for client..." << std::endl;
 
             layer_type server(service_);
@@ -2994,7 +2991,7 @@ std::cout << "12" << std::endl;
             server.accept(port,
             [=](layer_type client)
             {
-                if(DEBUG_MESSAGES2)
+                if(NEXTGEN_DEBUG_2)
                     std::cout << "[nextgen::network::server::accept] Successfully accepted client." << std::endl;
 
                 if(successful_handler != 0)
@@ -3002,7 +2999,7 @@ std::cout << "12" << std::endl;
             },
             [=]()
             {
-                if(DEBUG_MESSAGES2)
+                if(NEXTGEN_DEBUG_2)
                     std::cout << "[nextgen::network::server::accept] Failed to accept client." << std::endl;
 
                 if(failure_handler != 0)
@@ -3218,7 +3215,6 @@ namespace nextgen
 {
     string regex_single_match(string const& pattern, string const& subject)
     {
-
         boost::regex_error paren(boost::regex_constants::error_paren);
 
         try
@@ -3234,7 +3230,7 @@ namespace nextgen
             std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
         }
 
-        return "Null";
+        return "null";
     }
 }
 
@@ -3305,10 +3301,9 @@ namespace nextgen
                     return;
                 }
 
-
                 MYSQL_RES *result;
                 MYSQL_ROW row;
-                //std::cout << "c" << std::endl;
+
                 int status = mysql_query(self->link, query.c_str());
 
                 if(status)
@@ -3612,7 +3607,6 @@ namespace nextgen
 
         exit(0);
     }
-
 }
 
 namespace nextgen
@@ -3678,10 +3672,8 @@ namespace nextgen
                 }
                 else
                 {
-                    exit("File not open.");
+                    exit("File not open: " + name);
                 }
-
-
             }
 
             private: struct variables
@@ -3701,7 +3693,6 @@ namespace nextgen
 
             NEXTGEN_SHARED_DATA(service, variables);
         };
-
     }
 }
 

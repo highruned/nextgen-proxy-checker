@@ -321,13 +321,37 @@ void application::run(int argc, char* argv[])
         std::cout << "Loaded " << amount << " proxies." << std::endl;
     };
 
-    self->proxy_checker->refill_event += refill;
-
-    if(argc > 2)
+    if(argc > 1)
     {
-        proxos::proxy p1(argv[1], to_int(argv[2]));
+        std::string command = argv[1];
 
-        self.check_proxy(p1);
+        if(command == "check_proxy")
+        {
+            proxos::proxy proxy(argv[2], to_int(argv[3]));
+
+            self.check_proxy(proxy);
+        }
+        else if(command == "check_proxy_id")
+        {
+            std::string query("SELECT proxy_host, state_id, type_id, proxy_port, proxy_id, proxy_rating "
+            "FROM proxies "
+            "WHERE proxy_id = " + std::string(argv[2]));
+
+            std::cout << query << std::endl;
+
+            auto row = self->proxy_database.get_row(query);
+
+            proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]));
+            proxy->rating = to_int((*row)["proxy_rating"]);
+            proxy->state = to_int((*row)["state_id"]);
+            proxy->type = to_int((*row)["type_id"]);
+
+            self.check_proxy(proxy);
+        }
+    }
+    else
+    {
+        self->proxy_checker->refill_event += refill;
     }
 
     nextgen::timer timer;
