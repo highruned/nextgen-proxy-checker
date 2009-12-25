@@ -63,9 +63,9 @@ void application::run(int argc, char* argv[])
 
                     std::string query = "INSERT IGNORE INTO proxies SET proxy_host = \"" + host + "\", proxy_port = " + port + "";
 
-                    nextgen::sleep(0.01);
-
                     self->proxy_database.query(query);
+
+                    nextgen::sleep(0.01);
 
                     // update search position:
                     start = what[0].second;

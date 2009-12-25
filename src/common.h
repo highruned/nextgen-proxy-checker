@@ -23,9 +23,8 @@
 #include <algorithm>         // copy, min.
 #include <cassert>
 #include <deque>
-
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 //#include <time.h>
 //#include <math.h>
 #include <errno.h>
@@ -114,6 +113,7 @@
     public: bool operator==(int t) const { if(t == 0) return this->ng_data == 0; else return 0; } \
     public: bool operator!=(this_type const& t) const { return !this->operator==(t); } \
     public: bool operator!=(int t) const { return !this->operator==(t); } \
+    public: void operator=(int t) { if(t == 0) this->ng_data.reset(); } \
     public: boost::shared_ptr<data_type> const& operator->() const { return this->ng_data; }
 
 
@@ -122,6 +122,45 @@ bool NEXTGEN_DEBUG_2 = 1;
 bool NEXTGEN_DEBUG_3 = 0;
 bool NEXTGEN_DEBUG_4 = 1;
 bool NEXTGEN_DEBUG_5 = 1;
+
+std::string url_encode(std::string const& str)
+{
+    std::string str2;
+
+	for(size_t i = 0, l = str.size(); i < l; ++i)
+	{
+		switch(str[i])
+		{
+            case '%': str2 += "%25"; break;
+            case ' ': str2 += "%20"; break;
+            case '^': str2 += "%5E"; break;
+            case '&': str2 += "%26"; break;
+            case '`': str2 += "%60"; break;
+            case '{': str2 += "%7B"; break;
+            case '}': str2 += "%7D"; break;
+            case '|': str2 += "%7C"; break;
+            case ']': str2 += "%5D"; break;
+            case '[': str2 += "%5B"; break;
+            case '"': str2 += "%22"; break;
+            case '<': str2 += "%3C"; break;
+            case '>': str2 += "%3E"; break;
+            case '\\': str2 += "%5C"; break;
+            case '#': str2 += "%23"; break;
+            case '?': str2 += "%3F"; break;
+            case '/': str2 += "%2F"; break;
+            case ':': str2 += "%3A"; break;
+            case '@': str2 += "%40"; break;
+            case '=': str2 += "%3D"; break;
+            default: str2 += str[i]; break;
+        }
+	}
+
+	return str2;
+}
+
+
+
+
 
 void find_and_replace(std::string& source, std::string const& find, std::string const& replace)
 {
@@ -176,6 +215,14 @@ int to_int(std::string element)
     }
 
     return 0;
+}
+
+std::string reverse_string(std::string const& s)
+{
+	std::string temp(s);
+	std::reverse(temp.begin(), temp.end());
+
+	return temp;
 }
 
 namespace nextgen
@@ -249,14 +296,7 @@ namespace nextgen
 
     void sleep(float s)
     {
-        if(s < 0)
-        {
-            boost::this_thread::sleep(boost::posix_time::milliseconds((uint32_t)(s * 1000)));
-        }
-        else if(s > 0)
-        {
-            boost::this_thread::sleep(boost::posix_time::seconds((uint32_t)s));
-        }
+        boost::this_thread::sleep(boost::posix_time::milliseconds((uint32_t)(s * 1000)));
     }
 
     class byte_array
@@ -621,8 +661,8 @@ namespace nextgen
         template<typename element_type>
         class random
         {
-            public: random(element_type a1) : gen(static_cast<unsigned long>(std::time(0))), dst(0, a1), rand(gen, dst) {}
-            public: random(element_type a1, element_type a2) : gen(static_cast<unsigned long>(std::time(0))), dst(a1, a2), rand(gen, dst) {}
+            public: random(element_type a1) : gen((boost::posix_time::ptime(boost::posix_time::microsec_clock::local_time()) - boost::posix_time::ptime(boost::gregorian::date(1970, 1, 1))).ticks()), dst(0, a1), rand(gen, dst) {}
+            public: random(element_type a1, element_type a2) : gen((boost::posix_time::ptime(boost::posix_time::microsec_clock::local_time()) - boost::posix_time::ptime(boost::gregorian::date(1970, 1, 1))).ticks()), dst(a1, a2), rand(gen, dst) {}
 
             public: element_type get() { return this->rand(); }
 
@@ -791,20 +831,17 @@ namespace nextgen
         if(milliseconds > 0)
         {
             boost::shared_ptr<asio::deadline_timer> timer(new asio::deadline_timer(network_service.get_service()));
-
+std::cout << "timeout for " << milliseconds << std::endl;
             timer->expires_from_now(boost::posix_time::milliseconds(milliseconds));
 
             timer->async_wait([=](asio::error_code const& error)
             {
-                if(error != asio::error::operation_aborted)
-                {
-                    timer->expires_at();
-
-                    callback();
-                }
+                timer->expires_from_now(); // bugfix(daemn) it's going to go out of scope and cancel the timer automatically
 
                 if(NEXTGEN_DEBUG_4)
-                    std::cout << "timer" << std::endl;
+                    std::cout << "timer zzz" << std::endl;
+
+                callback();
             });
         }
         else
@@ -1674,8 +1711,8 @@ namespace nextgen
 
                                 if(NEXTGEN_DEBUG_4)
                                 {
-                                    std::cout << request_header << "\r\n" << std::endl;
-                                    std::cout << raw_header_list << "\r\n" << std::endl;
+                                    std::cout << request_header << std::endl;
+                                    std::cout << raw_header_list << std::endl;
                                     std::cout << content << std::endl;
                                 }
 
@@ -1729,7 +1766,7 @@ namespace nextgen
                                     // todo(daemn) fix line bug
                                     if(boost::regex_search(start, end, what, boost::regex("^HTTP\\/(.+?) ([0-9]+) (.+?)\r"), flags))
                                     {
-                                        if(NEXTGEN_DEBUG_3)
+                                        if(NEXTGEN_DEBUG_2)
                                             std::cout << "ZZZZZZZZZZ" << what[1] << what[2] << what[3] << std::endl;
 
                                         self->version = what[1];
@@ -1740,7 +1777,7 @@ namespace nextgen
                                     {
                                         if(boost::regex_search(start, end, what, boost::regex("^(.+?) (.+?) HTTP\\/(.+?)\r"), flags))
                                         {
-                                            if(NEXTGEN_DEBUG_3)
+                                            if(NEXTGEN_DEBUG_2)
                                                 std::cout << "YYYYYYYY " << what[1] << what[2] << what[3] << std::endl;
 
                                             self->method = what[1];
@@ -1771,18 +1808,22 @@ namespace nextgen
                                     string::const_iterator start = self->raw_header_list.begin();
                                     string::const_iterator end = self->raw_header_list.end();
 
+                                    std::cout << "raw: " << self->raw_header_list << std::endl;
+
                                     self->header_list["set-cookie"] = "";
 
                                     while(boost::regex_search(start, end, what, boost::regex("(.+?)\\: (.+?)\r\n"), flags))
                                     {
                                         if(what[1].length() > 0)
                                         {
-                                            if(NEXTGEN_DEBUG_3)
-                                                std::cout << "K: " << what[1] << ": " << what[2] << std::endl;
+
 
                                             std::string key = what[1];
 
                                             boost::to_lower(key);
+
+                                            if(NEXTGEN_DEBUG_2)
+                                                std::cout << "K: " << key << ": " << what[2] << std::endl;
 
                                             if(key == "set-cookie")
                                             {
@@ -1827,8 +1868,8 @@ namespace nextgen
                             if(NEXTGEN_DEBUG_4)
                             {
                                 std::cout << "LEN!! " << self->stream.get_buffer().in_avail() << std::endl;
-                                std::cout << "LEN2!! " << self->raw_header_list.length() << std::endl;
-                                std::cout << "LEN3!! " << self->raw_header_list << std::endl;
+                                //std::cout << "LEN2!! " << self->raw_header_list.length() << std::endl;
+                                //std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             }
 
                             if(self->stream.get_buffer().in_avail())
@@ -1837,29 +1878,25 @@ namespace nextgen
 
                                 self->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
-                                if(self->header_list.find("Content-Encoding") != self->header_list.end())
+                                if(self->header_list.find("content-encoding") != self->header_list.end()
+                                && self->header_list["content-encoding"] == "gzip"
+                                && self->content.length() > 0)
                                 {
-                                    if(self->header_list["Content-Encoding"] == "gzip")
+                                    std::vector<char> buffer;
+                                    std::string error;
+
+                                    if(NEXTGEN_DEBUG_4)
+                                        std::cout << "unpacking compressed l: " << self->content.length() << std::endl;
+
+                                    if(inflate_gzip(self->content.data(), self->content.length(), buffer, 1024 * 1024, error))
                                     {
-                                        if(self->content.length() > 0)
-                                        {
-                                            std::vector<char> buffer;
-                                            std::string error;
-
-                                            if(NEXTGEN_DEBUG_4)
-                                                std::cout << "compressed l: " << self->content.length() << std::endl;
-
-                                            if(inflate_gzip(self->content.data(), self->content.length(), buffer, 1024 * 1024, error))
-                                            {
-                                                std::cout << "Error uncompressing: " << error << std::endl;
-                                            }
-
-                                            if(buffer.size() > 0)
-                                                self->content = &buffer[0];
-                                            else
-                                                std::cout << "No content after uncompression" << std::endl;
-                                        }
+                                        std::cout << "Error uncompressing: " << error << std::endl;
                                     }
+
+                                    if(buffer.size() > 0)
+                                        self->content = &buffer[0];
+                                    else
+                                        std::cout << "No content after uncompression" << std::endl;
                                 }
                             }
                         }
@@ -2239,6 +2276,45 @@ namespace nextgen
                             });
                         }
 
+                        private: virtual void receive_chunked_data(message_type response, size_t length = 1, base_event_type successful_handler = 0, base_event_type failure_handler = 0) const
+                        {
+                            auto self = *this;
+
+                            self->transport_layer_.receive(asio::transfer_at_least(length), response->stream,
+                            [=]()
+                            {
+                                std::istream data_stream(&response->stream.get_buffer());
+
+                                string line, length;
+                                std::getline(data_stream, line); // blank line
+                                std::getline(data_stream, length);
+
+                                std::cout << "chunked length: " << length << std::endl;
+
+                                int l = 5;
+                                //int l = static_cast<int>(strtol(length, NULL, 16));
+
+                                response->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+
+                                if(l == 0)
+                                {
+                                    successful_handler();
+                                }
+                                else if(line.size() != 0)
+                                {
+                                    self.receive_chunked_data(response, 1, successful_handler, failure_handler);
+                                }
+                                else
+                                {
+                                    failure_handler();
+                                }
+                            },
+                            [=]()
+                            {
+                                failure_handler();
+                            });
+                        }
+
                         public: virtual void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
                         {
                             auto self = *this;
@@ -2271,7 +2347,42 @@ namespace nextgen
                                 if(response->status_code != 0 || response->method == "POST")
                                 // this http message has content, and we need to know the length
                                 {
-                                    if(response->header_list.find("content-length") != response->header_list.end())
+                                    if(response->header_list.find("transfer-encoding") != response->header_list.end()
+                                    &&response->header_list["transfer-encoding"] == "chunked")
+                                    {
+                                        std::cout << "unchunking encoding" << std::endl;
+
+                                        std::istream data_stream(&response->stream.get_buffer());
+
+                                        string line, length;
+                                        std::getline(data_stream, line); // blank line
+                                        std::getline(data_stream, line); // blank line
+                                        std::getline(data_stream, length); // length
+                                        //std::getline(data_stream, line); // blank line
+
+                                        std::cout << "chunked length: " << length << std::endl;
+
+                                        std::cout << response->content << std::endl;
+
+                                        response->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+
+                                        self.receive_chunked_data(response, 1, [=]
+                                        {
+                                            response.unpack_content();
+
+                                            successful_handler(response);
+                                        },
+                                        [=]()
+                                        {
+                                            if(NEXTGEN_DEBUG_5)
+                                                std::cout << "failed to receive rest of chunked encoding" << std::endl;
+
+                                            failure_handler();
+                                        });
+
+
+                                    }
+                                    else if(response->header_list.find("content-length") != response->header_list.end())
                                     {
                                         if(NEXTGEN_DEBUG_3)
                                             std::cout << "VVVVVVVVVVVVV " << response->header_list["content-length"] << " VVVVVV " << response->header_list["Content-Length"].length() << std::endl;
@@ -3642,7 +3753,7 @@ namespace nextgen
 
                 if(self->asset_list.size() > 0)
                 {
-                    if(auto i = self->asset_list.find(name) != self->asset_list.end())
+                    if(self->asset_list.find(name) != self->asset_list.end())
                     {
                         return self->asset_list[name];
                     }

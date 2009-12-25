@@ -371,7 +371,7 @@ void application::run(int argc, char* argv[])
 
         self->network_service.update();
 
-        nextgen::sleep(0.01);
+        nextgen::sleep(0.05);
     }
 }
 

@@ -507,8 +507,13 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
 
                     proxy.set_latency(proxy.get_timer().stop());
 
+                    if(r2->content.find("CoDeeN") != std::string::npos
+                    || r2->content.find("PlanetLab") != std::string::npos)
+                    {
+                        proxy.set_state(proxy_type::states::codeen);
+                    }
                     // proxy can receive data
-                    if(r2->content.find("my_data") != std::string::npos)
+                    else if(r2->content.find("my_data") != std::string::npos)
                     {
                         // proxy can receive headers
                         if(r2->header_list.find("set-cookie") != r2->header_list.end()
@@ -557,19 +562,12 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     // proxy cannot receive data
                     else
                     {
-                        if(r2->content.find("CoDeeN") != std::string::npos)
-                        {
-                            proxy.set_state(proxy_type::states::codeen);
-                        }
-                        else
-                        {
-                            proxy.set_state(proxy_type::states::bad_return_data);
-                        }
+                        proxy.set_state(proxy_type::states::bad_return_data);
                     }
 
                     client.disconnect();
 
-                    --self->active_clients;
+                    if(self->active_clients >= 0) --self->active_clients;
 
                     self.remove_job(proxy.get_id());
 
@@ -589,7 +587,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                         || job->proxy->type == proxy_type::types::elite)
                         // we know this could only be a http proxy
                         {
-                            --self->active_clients;
+                            if(self->active_clients >= 0) --self->active_clients;
 
                             self.remove_job(proxy.get_id());
 
@@ -612,7 +610,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                         if(job->proxy->type == proxy::types::socks4)
                         // we know this could only be a socks4 proxy
                         {
-                            --self->active_clients;
+                            if(self->active_clients >= 0) --self->active_clients;
 
                             self.remove_job(proxy.get_id());
 
@@ -634,7 +632,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     }
                     else if(client->proxy == "socks5")
                     {
-                        --self->active_clients;
+                        if(self->active_clients >= 0) --self->active_clients;
 
                         self.remove_job(proxy.get_id());
 
@@ -643,7 +641,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     }
                     else if(client->proxy == "socks4n5")
                     {
-                        --self->active_clients;
+                        if(self->active_clients >= 0) --self->active_clients;
 
                         self.remove_job(proxy.get_id());
 
@@ -654,7 +652,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     {
                         proxy.set_state(proxy_type::states::cannot_send);
 
-                        --self->active_clients;
+                        if(self->active_clients >= 0) --self->active_clients;
 
                         self.remove_job(proxy.get_id());
 
@@ -669,7 +667,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
 
                 self.remove_job(proxy.get_id());
 
-                --self->active_clients;
+                if(self->active_clients >= 0) --self->active_clients;
 
                 if(callback != 0)
                     callback();
@@ -688,8 +686,33 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     // try to clean out old server clients
                     self->server.clean();
 
+
+                    if(NEXTGEN_DEBUG_4)
+                        std::cout << "[proxy_checker] Cleaning out expired jobs.";
+
+                    std::remove_if(self->job_list.begin(), self->job_list.end(), [=](job_type& job) -> bool
+                    {
+                        if(job->client.is_alive())
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            if(NEXTGEN_DEBUG_4)
+                                std::cout << ".";
+
+                            job->client.disconnect();
+
+                            return true;
+                        }
+                    });
+
+                    std::cout << "maybe refilling: " << self->active_clients << " / " << self->client_max << std::endl;
+
+                    std::cout << "maybe refilling2: " << self->job_list.size() << " / " << self->client_max << std::endl;
+
                     // notify listeners we could use more jobs
-                    if(self->active_clients < self->client_max)
+                    if(self->job_list.size() < self->client_max)
                     {
                         size_t before = self->job_list.size();
 
