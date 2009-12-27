@@ -12,6 +12,7 @@
 #include <ostream>
 #include <string>
 #include <sstream>
+#include <iomanip>
 #include <map>
 #include <vector>
 #include <string>
@@ -25,6 +26,7 @@
 #include <deque>
 #include <cstdlib>
 #include <cstring>
+
 //#include <time.h>
 //#include <math.h>
 #include <errno.h>
@@ -44,6 +46,8 @@
 #include <boost/iostreams/detail/ios.hpp>  // failure.
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
+#include <boost/range.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/shared_array.hpp>
 #include <boost/ref.hpp>
@@ -67,6 +71,8 @@
 #include <boost/exception/diagnostic_information.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/finder.hpp>
+
 
 #include "gzip.h"
 #include "mysql/mysql.h"
@@ -117,11 +123,19 @@
     public: boost::shared_ptr<data_type> const& operator->() const { return this->ng_data; }
 
 
+int readHex(const char* s)
+{
+int i;
+std::istringstream (s) >> std::hex >> i;
+return i;
+}
+
 bool NEXTGEN_DEBUG_1 = 1;
 bool NEXTGEN_DEBUG_2 = 1;
 bool NEXTGEN_DEBUG_3 = 0;
 bool NEXTGEN_DEBUG_4 = 1;
 bool NEXTGEN_DEBUG_5 = 1;
+
 
 std::string url_encode(std::string const& str)
 {
@@ -273,6 +287,36 @@ namespace nextgen
     inline T cast(A a)
     {
         return boost::lexical_cast<T>(a);
+    }
+
+void getline(std::string& source, std::string& destination)
+{
+    size_t pos = source.find("\r\n");
+
+    if(pos != std::string::npos)
+    {
+        std::cout << "getline" << pos << std::endl;
+
+        destination = source.substr(0, pos);
+
+        boost::erase_head(source, pos + 2);
+    }
+}
+
+    std::string to_hex(std::string const& str)
+    {
+        std::string output;
+
+        char ch[3];
+
+        for(size_t i = 0, l = str.size(); i < l; ++i)
+        {
+            sprintf(ch, "\\x%02x", (byte)str[i]);
+
+            output += ch;
+        }
+
+        return output;
     }
 
 
@@ -1562,6 +1606,12 @@ std::cout << "timeout for " << milliseconds << std::endl;
                 {
                     class message : public message_base
                     {
+                        public: struct state_type
+                        {
+                            static const uint32_t none = 0;
+                            static const uint32_t remove_data_crlf = 1;
+                        };
+
                         public: stream_type get_stream() const
                         {
                             auto self = *this;
@@ -1872,38 +1922,35 @@ std::cout << "timeout for " << milliseconds << std::endl;
                                 //std::cout << "LEN3!! " << self->raw_header_list << std::endl;
                             }
 
-                            if(self->stream.get_buffer().in_avail())
+                            std::istream data_stream(&self->stream.get_buffer());
+
+                            self->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+std::cout << "encoding: " << self->header_list["content-encoding"] << std::endl;
+std::cout << "size: " << self->content.size() << std::endl;
+                            if(self->header_list["content-encoding"] == "gzip"
+                            && self->content.size() > 0)
                             {
-                                std::istream data_stream(&self->stream.get_buffer());
+                                std::vector<char> buffer;
+                                std::string error;
 
-                                self->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+                                if(NEXTGEN_DEBUG_4)
+                                    std::cout << "unpacking compressed l: " << self->content.length() << std::endl;
 
-                                if(self->header_list.find("content-encoding") != self->header_list.end()
-                                && self->header_list["content-encoding"] == "gzip"
-                                && self->content.length() > 0)
+                                if(inflate_gzip(self->content.data(), self->content.length(), buffer, 1024 * 1024, error))
                                 {
-                                    std::vector<char> buffer;
-                                    std::string error;
-
-                                    if(NEXTGEN_DEBUG_4)
-                                        std::cout << "unpacking compressed l: " << self->content.length() << std::endl;
-
-                                    if(inflate_gzip(self->content.data(), self->content.length(), buffer, 1024 * 1024, error))
-                                    {
-                                        std::cout << "Error uncompressing: " << error << std::endl;
-                                    }
-
-                                    if(buffer.size() > 0)
-                                        self->content = &buffer[0];
-                                    else
-                                        std::cout << "No content after uncompression" << std::endl;
+                                    std::cout << "Error uncompressing: " << error << std::endl;
                                 }
+
+                                if(buffer.size() > 0)
+                                    self->content = &buffer[0];
+                                else
+                                    std::cout << "No content after uncompression" << std::endl;
                             }
                         }
 
                         private: struct variables
                         {
-                            variables() : status_code(0), version("1.1")
+                            variables() : status_code(0), version("1.1"), state(state_type::none)
                             {
 
                             }
@@ -1933,6 +1980,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             string username;
                             string password;
                             string scheme;
+                            uint32_t state;
                         };
 
                         NEXTGEN_SHARED_DATA(message, variables);
@@ -2280,33 +2328,94 @@ std::cout << "timeout for " << milliseconds << std::endl;
                         {
                             auto self = *this;
 
+                            std::cout << "receive_chunked_data" << std::endl;
+
                             self->transport_layer_.receive(asio::transfer_at_least(length), response->stream,
                             [=]()
                             {
                                 std::istream data_stream(&response->stream.get_buffer());
 
-                                string line, length;
-                                std::getline(data_stream, line); // blank line
-                                std::getline(data_stream, length);
-
-                                std::cout << "chunked length: " << length << std::endl;
-
-                                int l = 5;
-                                //int l = static_cast<int>(strtol(length, NULL, 16));
-
                                 response->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
-                                if(l == 0)
+                                        std::cout << "CONTENT L BEFORE: " << response->content.size() << std::endl;
+
+                                        std::cout << "CONTENT BEFORE: " <<  to_hex(response->content) << std::endl;
+
+                                //int l = static_cast<int>(strtol(length, NULL, 16));
+
+
+                                uint32_t length;
+                                size_t pos;
+                                std::string data;
+
+                                while(true)
                                 {
-                                    successful_handler();
-                                }
-                                else if(line.size() != 0)
-                                {
-                                    self.receive_chunked_data(response, 1, successful_handler, failure_handler);
-                                }
-                                else
-                                {
-                                    failure_handler();
+                                    if(to_int(response->header_list["content-length"]) >= response->content.size())
+                                    {
+                                        size_t recv_amount = to_int(response->header_list["content-length"]) - response->content.size();
+
+                                        if(recv_amount == 0) recv_amount = 1;
+
+                                        self.receive_chunked_data(response, recv_amount, successful_handler, failure_handler);
+                                    }
+                                    else if(to_int(response->header_list["content-length"]) < response->content.size())
+                                    {
+                                        if(response->state == message_type::state_type::remove_data_crlf)
+                                        {
+                                            // erase newline
+                                            response->content.erase(to_int(response->header_list["content-length"]), 2);
+
+                                            response->state = message_type::state_type::none;
+                                        }
+
+                                        pos = response->content.find("\r\n", to_int(response->header_list["content-length"]));
+
+                                        if(pos == std::string::npos)
+                                        {
+                                            failure_handler();
+
+                                            return;
+                                        }
+
+                                        std::cout << "getline_intern " << pos << std::endl;
+
+                                        data = response->content.substr(to_int(response->header_list["content-length"]), pos - to_int(response->header_list["content-length"]));
+
+                                        response->content.erase(to_int(response->header_list["content-length"]), pos - to_int(response->header_list["content-length"]) + 2);
+
+                                        length = readHex(data.c_str());
+
+                                        std::cout << "chunked length hex: " << data.c_str() << std::endl;
+                                        std::cout << "chunked length: " << length << std::endl;
+
+                                        response->header_list["content-length"] = to_string(to_int(response->header_list["content-length"]) + length);
+
+                                        if(response->content.size() >= (to_int(response->header_list["content-length"]) + 2))
+                                        {
+                                            // erase newline
+                                            response->content.erase(to_int(response->header_list["content-length"]), 2);
+                                        }
+                                        else
+                                        {
+                                            response->state = message_type::state_type::remove_data_crlf;
+                                        }
+
+                                        std::cout << "CHUNK: " << to_int(response->header_list["content-length"]) << " / " << response->content.size() << std::endl;
+
+
+                                        if(length == 0)
+                                        {
+                                            //response->content.erase(response->content.size() - 2, 2); //blank line
+
+                                            std::cout << "after: " << to_hex(response->content) << std::endl;
+
+                                            successful_handler();
+                                        }
+                                        else
+                                            continue;
+                                    }
+
+                                    break;
                                 }
                             },
                             [=]()
@@ -2354,33 +2463,101 @@ std::cout << "timeout for " << milliseconds << std::endl;
 
                                         std::istream data_stream(&response->stream.get_buffer());
 
-                                        string line, length;
-                                        std::getline(data_stream, line); // blank line
-                                        std::getline(data_stream, line); // blank line
-                                        std::getline(data_stream, length); // length
-                                        //std::getline(data_stream, line); // blank line
-
-                                        std::cout << "chunked length: " << length << std::endl;
-
-                                        std::cout << response->content << std::endl;
+                                        response->header_list["content-length"] = "0";
 
                                         response->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
-                                        self.receive_chunked_data(response, 1, [=]
+                                        std::cout << "CONTENT L BEFORE: " << response->content.size() << std::endl;
+
+                                        std::cout << "CONTENT BEFORE: " <<  to_hex(response->content) << std::endl;
+
+                                        uint32_t length;
+                                        size_t pos;
+                                        std::string data;
+
+                                        while(true)
                                         {
-                                            response.unpack_content();
+                                            if(to_int(response->header_list["content-length"]) >= response->content.size())
+                                            {
+                                                size_t recv_amount = to_int(response->header_list["content-length"]) - response->content.size();
 
-                                            successful_handler(response);
-                                        },
-                                        [=]()
+                                                if(recv_amount == 0) recv_amount = 1;
+
+                                                self.receive_chunked_data(response, recv_amount, [=]
+                                                {
+                                                    response.unpack_content();
+
+                                                    successful_handler(response);
+                                                },
+                                                [=]()
+                                                {
+                                                    if(NEXTGEN_DEBUG_5)
+                                                        std::cout << "failed to receive rest of chunked encoding" << std::endl;
+
+                                                    failure_handler();
+                                                });
+                                            }
+                                            else if(to_int(response->header_list["content-length"]) < response->content.size())
+                                            {
+                                        if(response->state == message_type::state_type::remove_data_crlf)
                                         {
-                                            if(NEXTGEN_DEBUG_5)
-                                                std::cout << "failed to receive rest of chunked encoding" << std::endl;
+                                            // erase newline
+                                            response->content.erase(to_int(response->header_list["content-length"]), 2);
 
-                                            failure_handler();
-                                        });
+                                            response->state = message_type::state_type::none;
+                                        }
+
+                                                pos = response->content.find("\r\n", to_int(response->header_list["content-length"]));
+
+                                                if(pos == std::string::npos)
+                                                {
+                                                    failure_handler();
+
+                                                    return;
+                                                }
 
 
+                                                std::cout << "getline_intern " << pos << std::endl;
+
+                                                data = response->content.substr(to_int(response->header_list["content-length"]), pos - to_int(response->header_list["content-length"]));
+
+                                                response->content.erase(to_int(response->header_list["content-length"]), pos - to_int(response->header_list["content-length"]) + 2);
+
+                                                length = readHex(data.c_str());
+
+                                                std::cout << "chunked length hex: " << data.c_str() << std::endl;
+                                                std::cout << "chunked length: " << length << std::endl;
+
+                                                response->header_list["content-length"] = to_string(to_int(response->header_list["content-length"]) + length);
+
+                                        if(response->content.size() >= (to_int(response->header_list["content-length"]) + 2))
+                                        {
+                                            // erase newline
+                                            response->content.erase(to_int(response->header_list["content-length"]), 2);
+                                        }
+                                        else
+                                        {
+                                            response->state = message_type::state_type::remove_data_crlf;
+                                        }
+
+                                                std::cout << "CHUNK: " << to_int(response->header_list["content-length"]) << " / " << response->content.size() << std::endl;
+
+
+                                                if(length == 0)
+                                                {
+                                                    //response->content.erase(response->content.size() - 2, 2); //blank line
+
+
+                                                std::cout << "after: " << to_hex(response->content) << std::endl;
+
+                                                    successful_handler(response);
+                                                }
+                                                else
+                                                    continue;
+                                            }
+
+                                            break;
+                                        }
                                     }
                                     else if(response->header_list.find("content-length") != response->header_list.end())
                                     {

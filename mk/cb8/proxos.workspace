@@ -4,5 +4,6 @@
 		<Project filename="youtube_service.cbp" active="1" />
 		<Project filename="proxy_tool.cbp" />
 		<Project filename="proxy_checker.cbp" />
+		<Project filename="backlink_submitter.cbp" />
 	</Workspace>
 </CodeBlocks_workspace_file>

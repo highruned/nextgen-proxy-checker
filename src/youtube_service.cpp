@@ -11,7 +11,7 @@ class application : public nextgen::singleton<application>
         auto self = *this;
     }
 
-    public: void run();
+    public: void run(int argc, char* argv[]);
 
     private: struct variables
     {
@@ -27,12 +27,13 @@ class application : public nextgen::singleton<application>
 
         network_service_type network_service;
         nextgen::database::link proxy_database;
+        nextgen::network::server<nextgen::network::smtp_client> mail_server;
     };
 
     NEXTGEN_SHARED_DATA(application, variables);
 };
 
-void application::run()
+void application::run(int argc, char* argv[])
 {
     auto self = *this;
 
@@ -84,69 +85,9 @@ void application::run()
         }
         else if(command == "create_account")
         {
-            nextgen::network::http_message m1;
-
-            m1->method = "GET";
-            m1->url = "https://www.google.com/accounts/NewAccount";
-            m1->header_list["Host"] = "www.google.com";
-            m1->header_list["User-Agent"] = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
-            m1->header_list["Keep-Alive"] = "300";
-            m1->header_list["Connection"] = "keep-alive";
-
             youtube::client c1(self->network_service);
 
-            c1.connect("youtube.com", 80, nextgen::network::ipv4_address("youtube.com", 80),
-            {
-                c1.send_and_receive(m1,
-                [=](nextgen::network::http_message r1)
-                {
-                    if(r1->status_code != 200)
-                    {
-                        std::cout << "failed to receive signup page" << r1->status_code << std::endl;
-
-                        return;
-                    }
-
-                    std::string ctoken = nextgen::regex_single_match("accounts/Captcha\\?ctoken=(.+?)\"", r1->content);
-                    std::string dsh = nextgen::regex_single_match("id=\"dsh\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounttoken = nextgen::regex_single_match"id=\"newaccounttoken\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounturl = nextgen::regex_single_match("id=\"newaccounturl\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounttoken_audio = nextgen::regex_single_match("id=\"newaccounttoken_audio\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounturl_audio = nextgen::regex_single_match("id=\"newaccounturl_audio\".{1,15}value=\"(.+?)\"", r1->content);
-
-                    std::cout << "https://www.google.com/accounts/Captcha?ctoken=" + ctoken << std::endl;
-
-                    std::string newaccountcaptcha;
-
-                    std::cin >> newaccountcaptcha;
-
-                    m1->content = "dsh=" + url_encode(dsh)
-                    + "&ktl=&ktf=&Email=" + url_encode(email)
-                    + "&Passwd=" + url_encode(password)
-                    + "&PasswdAgain=" + url_encode(password)
-                    + "&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)
-                    + "&newaccounturl=" + url_encode(newaccounturl)
-                    + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
-                    + "&newaccounturl_audio=" + url_encode(newaccounturl_audio)
-                    + "&newaccountcaptcha=" + url_encode(newaccountcaptcha)
-                    + "&privacy_policy_url=http%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fprivacy.html&requested_tos_location=CA&requested_tos_language=en&served_tos_location=CA&served_tos_language=en&submitbutton=I+accept.+Create+my+account.";
-
-                    std::cout << m2->content << std::endl;
-
-                    m1->url = "https://www.google.com/accounts/CreateAccount";
-                    m1->header_list["Referer"] = m1->url;
-
-                    client.send_and_receive(m2,
-                    [=](nextgen::network::http_message r2)
-                    {
-
-                    },
-                    [=]
-                    {
-
-                    });
-                });
-            });
+            c1.create_account("abcd", "dcba", "abdk@adalda.com");
         }
     }
 
@@ -167,7 +108,7 @@ void application::run()
     }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    application::instance().run();
+    application::instance().run(argc, argv);
 }

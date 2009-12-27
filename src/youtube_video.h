@@ -236,6 +236,78 @@ std::cout << r1->header_list["proxy-connection"] << std::endl;
             }
         }
 
+        public: void create_account(std::string const& username, std::string const& password, std::string const& email) const
+        {
+            auto self = *this;
+
+            self->client.connect("youtube.com", 80, nextgen::network::ipv4_address("youtube.com", 80),
+            [=]
+            {
+                nextgen::network::http_message m1;
+
+                m1->method = "GET";
+                m1->url = "https://www.google.com/accounts/NewAccount";
+                m1->header_list["Host"] = "www.google.com";
+                m1->header_list["User-Agent"] = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
+                m1->header_list["Keep-Alive"] = "300";
+                m1->header_list["Connection"] = "keep-alive";
+
+                self->client.send_and_receive(m1,
+                [=](nextgen::network::http_message r1)
+                {
+                    if(r1->status_code != 200)
+                    {
+                        std::cout << "failed to receive signup page" << r1->status_code << std::endl;
+
+                        return;
+                    }
+
+                    std::cout << "new_account response: " << r1->content << std::endl;
+
+                    std::string ctoken = nextgen::regex_single_match("accounts/Captcha\\?ctoken=(.+?)\"", r1->content);
+                    std::string dsh = nextgen::regex_single_match("id=\"dsh\".{1,15}value=\"(.+?)\"", r1->content);
+                    std::string newaccounttoken = nextgen::regex_single_match("id=\"newaccounttoken\".{1,15}value=\"(.+?)\"", r1->content);
+                    std::string newaccounturl = nextgen::regex_single_match("id=\"newaccounturl\".{1,15}value=\"(.+?)\"", r1->content);
+                    std::string newaccounttoken_audio = nextgen::regex_single_match("id=\"newaccounttoken_audio\".{1,15}value=\"(.+?)\"", r1->content);
+                    std::string newaccounturl_audio = nextgen::regex_single_match("id=\"newaccounturl_audio\".{1,15}value=\"(.+?)\"", r1->content);
+
+                    std::cout << "https://www.google.com/accounts/Captcha?ctoken=" + ctoken << std::endl;
+
+                    std::string newaccountcaptcha;
+
+                    std::cin >> newaccountcaptcha;
+
+                    m1->content = "dsh=" + url_encode(dsh)
+                    + "&ktl=&ktf=&Email=" + url_encode(email)
+                    + "&Passwd=" + url_encode(password)
+                    + "&PasswdAgain=" + url_encode(password)
+                    + "&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)
+                    + "&newaccounturl=" + url_encode(newaccounturl)
+                    + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
+                    + "&newaccounturl_audio=" + url_encode(newaccounturl_audio)
+                    + "&newaccountcaptcha=" + url_encode(newaccountcaptcha)
+                    + "&privacy_policy_url=http%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fprivacy.html&requested_tos_location=CA&requested_tos_language=en&served_tos_location=CA&served_tos_language=en&submitbutton=I+accept.+Create+my+account.";
+
+                    std::cout << m1->content << std::endl;
+
+                    m1->url = "https://www.google.com/accounts/CreateAccount";
+                    m1->header_list["Referer"] = m1->url;
+
+                    self->client.send_and_receive(m1,
+                    [=](nextgen::network::http_message r2)
+                    {
+                        std::cout << "create_account response: " << r2->content << std::endl;
+
+                        self->client.disconnect();
+                    },
+                    [=]
+                    {
+
+                    });
+                });
+            });
+        }
+
         private: struct variables
         {
             variables(nextgen::network::service network_service) : network_service(network_service), client(network_service)
