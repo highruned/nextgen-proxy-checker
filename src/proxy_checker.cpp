@@ -1,6 +1,5 @@
-#define FD_SETSIZE 65535//4096
+#define FD_SETSIZE 65535
 
-#include "common.h"
 #include "proxy_checker.h"
 
 class address
@@ -113,14 +112,6 @@ class address_range
 
 class application : public nextgen::singleton<application>
 {
-    public: typedef nextgen::network::service network_service_type;
-
-    public: void initialize()
-    {
-        auto self = *this;
-
-    }
-
     public: void check_proxy(proxos::proxy proxy, std::function<void()> callback = 0) const
     {
         auto self = *this;
@@ -229,7 +220,7 @@ class application : public nextgen::singleton<application>
         return false;
     }
 
-    public: void run(int argc, char* argv[]);
+    public: void run(int, char**);
 
     private: struct variables
     {
@@ -238,12 +229,7 @@ class application : public nextgen::singleton<application>
 
         }
 
-        ~variables()
-        {
-
-        }
-
-        network_service_type network_service;
+        nextgen::network::service network_service;
         nextgen::database::link proxy_database;
         proxos::proxy_checker proxy_checker;
         std::vector<address_range> banlist;

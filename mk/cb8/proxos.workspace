@@ -5,5 +5,6 @@
 		<Project filename="proxy_tool.cbp" />
 		<Project filename="proxy_checker.cbp" />
 		<Project filename="backlink_submitter.cbp" />
+		<Project filename="../../../../temp/Test/Test.cbp" />
 	</Workspace>
 </CodeBlocks_workspace_file>

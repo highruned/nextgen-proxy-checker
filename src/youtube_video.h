@@ -1,7 +1,11 @@
 #ifndef PROXOS_YOUTUBE_VIDEO
 #define PROXOS_YOUTUBE_VIDEO
 
-#include "common.h"
+#include "nextgen/common.h"
+#include "nextgen/network.h"
+#include "nextgen/database.h"
+#include "nextgen/social.h"
+
 #include "proxy_checker.h"
 
 bool YOUTUBE_DEBUG_1 = 1;
@@ -101,96 +105,42 @@ namespace youtube
 
                         return;
                     }
-/*
-                    nextgen::network::http_message m2;
 
-                    m2->method = "GET";
-                    m2->url = "http://www.youtube.com/get_video_info?video_id=" + v->id;
-                    m2->header_list["Host"] = "www.youtube.com";
-                    m2->header_list["User-Agent"] = self->agent->title;
-                    m2->header_list["Keep-Alive"] = "300";
-                    m2->header_list["Connection"] = "keep-alive";
-                    m2->header_list["Cookie"] = r1->header_list["set-cookie"];
+                    nextgen::string token = nextgen::regex_single_match("\"t\"\\: \"(.+?)\"\\,", r1->content);
+
+                    if(token == "null")
+                    {
+                        std::cout << "[youtube] error: null token" << std::endl;
+
+                        return;
+                    }
+
+                    nextgen::network::http_message m3;
+
+                    m3->method = "GET";
+                    m3->url = "http://www.youtube.com/get_video?video_id=" + v->id + "&t=" + token + "&el=detailpage&ps=";//&noflv=1";
+                    m3->header_list["Host"] = "www.youtube.com";
+                    m3->header_list["User-Agent"] = self->agent->title;
+                    m3->header_list["Keep-Alive"] = "300";
+                    m3->header_list["Connection"] = "keep-alive";
+                    m3->header_list["Cookie"] = r1->header_list["set-cookie"];
 
                     if(YOUTUBE_DEBUG_1)
-                        std::cout << "COOKIES: " << r1->header_list["set-cookie"] << std::endl;
+                        std::cout << "[youtube] Receiving download" << std::endl;
 
-                    auto video_info_request = [=](nextgen::network::http_message r2)
-                    {
-                        if(YOUTUBE_DEBUG_1)
-                            std::cout << "[proxos:youtube] Received video info response." << std::endl;
-
-                        if(YOUTUBE_DEBUG_1)
-                            std::cout << r2->content << std::endl;
-
-                        if(r2->status_code != 200
-                        || r2->content.find("thumbnail_url") == std::string::npos)
-                        {
-                            if(YOUTUBE_DEBUG_1)
-                                std::cout << "[proxos:youtube] Error receiving video info. " << r2->status_code << std::endl;
-
-                            return;
-                        }*/
-
-                        nextgen::string token = nextgen::regex_single_match("\"t\"\\: \"(.+?)\"\\,", r1->content);
-                        //nextgen::string token = nextgen::regex_single_match("&token=(.+?)&thumbnail_url", r2->content);
-
-                        if(token == "null")
-                        {
-                            std::cout << "[youtube] error: null token" << std::endl;
-
-                            return;
-                        }
-
-                        nextgen::network::http_message m3;
-
-                        m3->method = "GET";
-                        m3->url = "http://www.youtube.com/get_video?video_id=" + v->id + "&t=" + token + "&el=detailpage&ps=";//&noflv=1";
-                        m3->header_list["Host"] = "www.youtube.com";
-                        m3->header_list["User-Agent"] = self->agent->title;
-                        m3->header_list["Keep-Alive"] = "300";
-                        m3->header_list["Connection"] = "keep-alive";
-                        m3->header_list["Cookie"] = r1->header_list["set-cookie"];
-
-std::cout << r1->header_list["proxy-connection"] << std::endl;
-
-                        if(YOUTUBE_DEBUG_1)
-                            std::cout << "[youtube] Receiving download" << std::endl;
-
-                        if(r1->header_list["proxy-connection"] == "close"
-                        || r1->header_list["connection"] == "close")
-                        // reconnect if proxy closes the connection after one HTTP request
-                        {
-                            self->client.reconnect([=]()
-                            {
-                                self.video_download_detail(m3, view_count, view_max);
-                            });
-
-                            return;
-                        }
-
-                        self.video_download_detail(m3, view_count, view_max);
-                    /*};
-
-                    std::cout << "pccon: " << r1->header_list["proxy-connection"] << std::endl;
-
-                    if(r1->header_list.find("proxy-connection") != r1->header_list.end()
-                    && r1->header_list["proxy-connection"] == "close")
+                    if(r1->header_list["proxy-connection"] == "close"
+                    || r1->header_list["connection"] == "close")
                     // reconnect if proxy closes the connection after one HTTP request
                     {
                         self->client.reconnect([=]()
                         {
-                            self->client.send_and_receive(m2, video_info_request);
+                            self.video_download_detail(m3, view_count, view_max);
                         });
 
                         return;
                     }
 
-                    // wait to avoid spam filter
-                    nextgen::timeout(self->network_service, [=]()
-                    {
-                        self->client.send_and_receive(m2, video_info_request);
-                    }, nextgen::random(1000, 3000));*/
+                    self.video_download_detail(m3, view_count, view_max);
                 });
             });
         }
@@ -236,11 +186,14 @@ std::cout << r1->header_list["proxy-connection"] << std::endl;
             }
         }
 
-        public: void create_account(std::string const& username, std::string const& password, std::string const& email) const
+        public: void create_account(std::string const& username, std::string const& password, pgen::email email) const
         {
             auto self = *this;
 
-            self->client.connect("youtube.com", 80, nextgen::network::ipv4_address("youtube.com", 80),
+            pgen::account account;
+            account->type = pgen::account::types::youtube;
+
+            self->client.connect("google.com", 80, nextgen::network::ipv4_address("google.com", 80),
             [=]
             {
                 nextgen::network::http_message m1;
@@ -293,16 +246,63 @@ std::cout << r1->header_list["proxy-connection"] << std::endl;
                     m1->url = "https://www.google.com/accounts/CreateAccount";
                     m1->header_list["Referer"] = m1->url;
 
-                    self->client.send_and_receive(m1,
-                    [=](nextgen::network::http_message r2)
-                    {
-                        std::cout << "create_account response: " << r2->content << std::endl;
-
-                        self->client.disconnect();
-                    },
+                    self->client.send(m1,
                     [=]
                     {
+                        email.receive(
+                        [=](std::string content)
+                        {
+                            std::string c = nextgen::regex_single_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
 
+                            if(c == "null")
+                            {
+                                std::cout << "[youtube] error: null c" << std::endl;
+
+                                return;
+                            }
+
+                            nextgen::network::http_client c2(self->network_service);
+
+                            nextgen::network::http_message m2;
+
+                            m2->method = "GET";
+                            m2->url = "https://www.google.com/accounts/VE?c=" + c + "&hl=en";
+                            m2->header_list["Host"] = "www.google.com";
+                            m2->header_list["User-Agent"] = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
+                            m2->header_list["Keep-Alive"] = "300";
+                            m2->header_list["Connection"] = "keep-alive";
+
+                            c2.send_and_receive(m2,
+                            [=](nextgen::network::http_message r2)
+                            {
+                                std::cout << r2->content << std::endl;
+
+                                std::string q1("SELECT * FROM accounts WHERE accounts.person_id = " + to_string(account->person->id) + " LIMIT 1");
+
+                                std::cout << "Executing SQL: " << q1 << std::endl;
+
+                                nextgen::database::row_list row_list = self->main_database.get_row_list(q1);
+
+                                if(rows->size() == 0)
+                                {
+                                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(account->type) + ", account_username = \"" + account->username + "\", account_email = \"" + account->email + "\", account_password = \"" + account->password + "\", person_id = " + to_string(account->person->id));
+
+                                    std::cout << "Executing SQL: " << q2 << std::endl;
+
+                                    self->main_database.query(q2);
+
+                                    ///
+                                }
+                            });
+                        });
+
+                        self->client.receive(
+                        [=](nextgen::network::http_message r2)
+                        {
+                            std::cout << "create_account response: " << r2->content << std::endl;
+
+                            self->client.disconnect();
+                        });
                     });
                 });
             });

@@ -57,6 +57,12 @@
 		</Linker>
 		<Unit filename="../../src/common.h" />
 		<Unit filename="../../src/gzip.h" />
+		<Unit filename="../../src/nextgen/network.h" />
+		<Unit filename="../../src/nextgen_content.h" />
+		<Unit filename="../../src/nextgen_database.h" />
+		<Unit filename="../../src/nextgen_math.h" />
+		<Unit filename="../../src/openll/common.h" />
+		<Unit filename="../../src/pgen/person.h" />
 		<Unit filename="../../src/youtube_service.cpp" />
 		<Unit filename="../../src/youtube_video.h" />
 		<Extensions>

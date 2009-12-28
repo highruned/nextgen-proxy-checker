@@ -1,7 +1,10 @@
 #ifndef PROXOS_PROXY_CHECKER
 #define PROXOS_PROXY_CHECKER
 
-#include "common.h"
+#include "nextgen/common.h"
+#include "nextgen/network.h"
+#include "nextgen/database.h"
+#include "nextgen/social.h"
 
 bool PROXOS_DEBUG_1 = 1;
 
