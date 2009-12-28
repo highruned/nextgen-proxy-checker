@@ -75,12 +75,19 @@ namespace nextgen
 
             public: void receive(receive_successful_event_type successful_handler) const
             {
-                self->server->handler_list[self->user + "@" + self->host] = successful_handler;
+                //self->server->handler_list[self->user + "@" + self->host] = successful_handler;
+            }
+
+            public: operator std::string() const
+            {
+                auto self = *this;
+
+                return self->user + "@" + self->host;
             }
 
             private: NEXTGEN_SHARED_CLASS(email, NEXTGEN_SHARED_CLASS_VARS(
             {
-                variables(nextgen::network::smtp_server server) : server(server), username("null"), host("null")
+                variables(nextgen::network::smtp_server server) : server(server), user("null"), host("null")
                 {
 
                 }

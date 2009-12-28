@@ -113,6 +113,7 @@
     private: boost::shared_ptr<data_type> ng_data; \
     public: this_type(this_type& t) : ng_data(t.ng_data) { } \
     public: this_type(this_type const& t) : ng_data(t.ng_data) { } \
+    public: this_type(nextgen::null_t& t) { } \
     public: template<typename ...ng_argument_types> this_type(ng_argument_types&& ...argument_list) : ng_data(new data_type(argument_list...)) { __VA_ARGS__ } \
     public: template<typename ng_argument_type> this_type(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type, ng_argument_type>>::type* dummy = 0) : ng_data(t.ng_data) { } \
     public: bool operator==(this_type const& t) const { return &(*this->ng_data) == &(*t.ng_data); } \
@@ -122,6 +123,7 @@
     public: void operator=(int t) { if(t == 0) this->ng_data.reset(); } \
     public: boost::shared_ptr<data_type> const& operator->() const { return this->ng_data; }
 
+
 #define NEXTGEN_SHARED_CLASS_VARS(...) \
     __VA_ARGS__
 
@@ -130,12 +132,12 @@
 
 #define NEXTGEN_SHARED_CLASS(this_type, data_scope, ...) \
     private: struct variables data_scope; \
-    private: this_type& self; \
     private: boost::shared_ptr<variables> data_; \
-    public: this_type(this_type& t) : data_(t.data_), self(*this) { } \
-    public: this_type(this_type const& t) : data_(t.data_), self(*this) { } \
-    public: template<typename ...argument_types> this_type(argument_types&& ...argument_list) : data_(new variables(argument_list...)), self(*this) { __VA_ARGS__ } \
-    public: template<typename argument_type> this_type(argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type, argument_type>>::type* dummy = 0) : data_(t.data_), self(*this) { } \
+    public: this_type(this_type& t) : data_(t.data_) { } \
+    public: this_type(this_type const& t) : data_(t.data_) { } \
+    public: this_type(nextgen::null_t& t) { } \
+    public: template<typename ...argument_types> this_type(argument_types&& ...argument_list) : data_(new variables(argument_list...)) { __VA_ARGS__ } \
+    public: template<typename argument_type> this_type(argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type, argument_type>>::type* dummy = 0) : data_(t.data_) { } \
     public: bool operator==(this_type const& t) const { return &(*this->data_) == &(*t.data_); } \
     public: bool operator==(int t) const { if(t == 0) return this->data_ == 0; else return 0; } \
     public: bool operator!=(this_type const& t) const { return !this->operator==(t); } \
@@ -275,6 +277,33 @@ namespace nextgen
     typedef boost::uint32_t uint32_t;
     typedef boost::uint64_t uint64_t;
 
+    class null_t
+    {
+        public: template<typename element_type> operator element_type() const
+        {
+            return 0;
+        }
+
+        public: template<typename element_type> bool operator==(element_type& e) const
+        {
+            return e == 0;
+        }
+    };
+
+    template<>
+    null_t::operator std::string() const
+    {
+        return "null_t";
+    }
+
+    template<>
+    bool null_t::operator ==(std::string& s) const
+    {
+        return s == "null_t";
+    }
+
+    null_t null;
+
     template<typename A, typename B>
     class hash_map : public boost::unordered_map<A, B> {};
 
@@ -337,7 +366,6 @@ namespace nextgen
 
 
     #if NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_WINDOWS
-        const int null = NULL;
         typedef HANDLE handle;
         typedef HWND window_handle;
         typedef HMODULE module_handle;
@@ -345,7 +373,6 @@ namespace nextgen
     	typedef STARTUPINFOA startup_information;
     	typedef PROCESS_INFORMATION pProcess_information;
     #else
-        const int null = 0;
         typedef int handle;
         typedef int window_handle;
         typedef int module_handle;

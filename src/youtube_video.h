@@ -14,28 +14,37 @@ namespace youtube
 {
     class video
     {
-        private: struct variables
+        NEXTGEN_SHARED_CLASS(video, NEXTGEN_SHARED_CLASS_VARS(
         {
-            variables()
-            {
-
-            }
-
-            ~variables()
+            variables() : id("null")
             {
 
             }
 
             std::string id;
-        };
-
-        NEXTGEN_SHARED_DATA(video, variables);
+        }));
     };
 
+    class account // extends nextgen::social::account
+    {
+        NEXTGEN_SHARED_CLASS(account, NEXTGEN_SHARED_CLASS_VARS(
+        {
+            variables() : username("null"), password("null"), email(nextgen::null), person(nextgen::null), type(0)
+            {
+
+            }
+
+            std::string username;
+            std::string password;
+            nextgen::social::email email;
+            nextgen::social::person person;
+            uint32_t type;
+        }));
+    };
 
     class client
     {
-        public: void view_video(video v, size_t view_max) const
+        public: void view_video(video v1, size_t view_max) const
         {
             auto self = *this;
 
@@ -81,7 +90,7 @@ namespace youtube
                 nextgen::network::http_message m1;
 
                 m1->method = "GET";
-                m1->url = "http://www.youtube.com/watch?v=" + v->id;
+                m1->url = "http://www.youtube.com/watch?v=" + v1->id;
                 m1->header_list["Host"] = "www.youtube.com";
                 m1->header_list["User-Agent"] = self->agent->title;
                 m1->header_list["Keep-Alive"] = "300";
@@ -118,7 +127,7 @@ namespace youtube
                     nextgen::network::http_message m3;
 
                     m3->method = "GET";
-                    m3->url = "http://www.youtube.com/get_video?video_id=" + v->id + "&t=" + token + "&el=detailpage&ps=";//&noflv=1";
+                    m3->url = "http://www.youtube.com/get_video?video_id=" + v1->id + "&t=" + token + "&el=detailpage&ps=";//&noflv=1";
                     m3->header_list["Host"] = "www.youtube.com";
                     m3->header_list["User-Agent"] = self->agent->title;
                     m3->header_list["Keep-Alive"] = "300";
@@ -186,12 +195,9 @@ namespace youtube
             }
         }
 
-        public: void create_account(std::string const& username, std::string const& password, pgen::email email) const
+        public: void create_account(account a1, std::function<void()> successful_handler) const
         {
             auto self = *this;
-
-            pgen::account account;
-            account->type = pgen::account::types::youtube;
 
             self->client.connect("google.com", 80, nextgen::network::ipv4_address("google.com", 80),
             [=]
@@ -231,9 +237,9 @@ namespace youtube
                     std::cin >> newaccountcaptcha;
 
                     m1->content = "dsh=" + url_encode(dsh)
-                    + "&ktl=&ktf=&Email=" + url_encode(email)
-                    + "&Passwd=" + url_encode(password)
-                    + "&PasswdAgain=" + url_encode(password)
+                    + "&ktl=&ktf=&Email=" + url_encode(a1->email)
+                    + "&Passwd=" + url_encode(a1->password)
+                    + "&PasswdAgain=" + url_encode(a1->password)
                     + "&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)
                     + "&newaccounturl=" + url_encode(newaccounturl)
                     + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
@@ -249,7 +255,7 @@ namespace youtube
                     self->client.send(m1,
                     [=]
                     {
-                        email.receive(
+                        a1->email.receive(
                         [=](std::string content)
                         {
                             std::string c = nextgen::regex_single_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
@@ -277,22 +283,8 @@ namespace youtube
                             {
                                 std::cout << r2->content << std::endl;
 
-                                std::string q1("SELECT * FROM accounts WHERE accounts.person_id = " + to_string(account->person->id) + " LIMIT 1");
-
-                                std::cout << "Executing SQL: " << q1 << std::endl;
-
-                                nextgen::database::row_list row_list = self->main_database.get_row_list(q1);
-
-                                if(rows->size() == 0)
-                                {
-                                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(account->type) + ", account_username = \"" + account->username + "\", account_email = \"" + account->email + "\", account_password = \"" + account->password + "\", person_id = " + to_string(account->person->id));
-
-                                    std::cout << "Executing SQL: " << q2 << std::endl;
-
-                                    self->main_database.query(q2);
-
-                                    ///
-                                }
+                                if(successful_handler != nextgen::null)
+                                    successful_handler();
                             });
                         });
 

@@ -4,13 +4,13 @@
 
 class application : public nextgen::singleton<application>
 {
-    OPENLL_SHARED_DATA(application,
+    NEXTGEN_SHARED_CLASS(application, NEXTGEN_SHARED_CLASS_VARS(
     {
         nextgen::network::service network_service;
         nextgen::database::link main_database;
         nextgen::database::link proxy_database;
         nextgen::network::server<nextgen::network::smtp_client> mail_server;
-    });
+    }));
 
     public: void run(int, char**);
 };
@@ -47,8 +47,8 @@ void application::run(int argc, char* argv[])
                     return;
                 }
 
-                if(self->email_handler_list.find(email) != self->email_handler_list.end())
-                    self->email_handler_list[email](r1->content);
+               // if(self->email_handler_list.find(email) != self->email_handler_list.end())
+                 //   self->email_handler_list[email](r1->content);
 
             });
         });
@@ -100,7 +100,33 @@ void application::run(int argc, char* argv[])
         {
             youtube::client c1(self->network_service);
 
-            c1.create_account("abcd", "dcba", "abdk@adalda.com");
+            youtube::account a1;
+            a1->username = "abcd";
+            a1->password = "dcba";
+            a1->email = nextgen::social::email(self->mail_server);
+            a1->email->user = "abcd";
+            a1->email->host = "blah.com";
+
+            c1.create_account(a1,
+            [=]()
+            {
+                std::string q1("SELECT * FROM accounts WHERE accounts.person_id = " + to_string(a1->person->id) + " LIMIT 1");
+
+                std::cout << "Executing SQL: " << q1 << std::endl;
+
+                nextgen::database::row_list row_list = self->main_database.get_row_list(q1);
+
+                if(row_list->size() == 0)
+                {
+                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->username + "\", account_email = \"" + a1->email + "\", account_password = \"" + a1->password + "\", person_id = " + to_string(a1->person->id));
+
+                    std::cout << "Executing SQL: " << q2 << std::endl;
+
+                    self->main_database.query(q2);
+
+                    ///
+                }
+            });
         }
     }
 
