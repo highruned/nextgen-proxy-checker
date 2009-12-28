@@ -4,10 +4,4 @@
 	<File name="../../src/common.h" open="1" top="0" tabpos="0">
 		<Cursor position="0" topLine="0" />
 	</File>
-	<File name="../../src/proxy_checker.h" open="1" top="0" tabpos="0">
-		<Cursor position="0" topLine="0" />
-	</File>
-	<File name="../../src/proxy_tool.cpp" open="1" top="0" tabpos="2">
-		<Cursor position="943" topLine="26" />
-	</File>
 </CodeBlocks_layout_file>

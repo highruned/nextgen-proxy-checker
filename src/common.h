@@ -1602,6 +1602,390 @@ std::cout << "timeout for " << milliseconds << std::endl;
                     public: typedef string method_type;
                 };
 
+
+                namespace smtp
+                {
+                    class message : public message_base
+                    {
+                        public: struct state_type
+                        {
+                            static const uint32_t none = 0;
+                        };
+
+                        public: stream_type get_stream() const
+                        {
+                            auto self = *this;
+
+                            return self->stream;
+                        }
+
+                        public: void pack() const
+                        {
+                            auto self = *this;
+
+                            std::ostream data_stream(&self->stream.get_buffer());
+
+                        }
+
+                        public: void unpack_content() const
+                        {
+                            auto self = *this;
+
+                            std::istream data_stream(&self->stream.get_buffer());
+
+                            self->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+
+                        }
+
+                        private: struct variables
+                        {
+                            variables() : state(state_type::none)
+                            {
+
+                            }
+
+                            ~variables()
+                            {
+
+                            }
+
+                            content_type content;
+                            stream_type stream;
+                            uint32_t state;
+                        };
+
+                        NEXTGEN_SHARED_DATA(message, variables);
+                    };
+
+                    template<typename transport_layer_type>
+                    class layer : public layer_base<message>
+                    {
+                        public: typedef layer<transport_layer_type> this_type;
+                        public: typedef std::function<void(this_type)> accept_successful_event_type;
+                        public: typedef base_event_type accept_failure_event_type;
+                        public: typedef float keep_alive_threshold_type;
+
+                        public: virtual void reconnect(connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        {
+                            auto self = *this;
+
+                            if(NEXTGEN_DEBUG_5)
+                                std::cout << "[nextgen::network::smtp_client] reconnecting" << std::endl;
+
+                            self.disconnect();
+                            self.connect(self->host, self->port, self->proxy_address, successful_handler2, failure_handler2);
+                        }
+
+                        public: virtual void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        {
+                            auto self = *this;
+
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
+                            if(successful_handler == 0)
+                                successful_handler = self->connect_successful_event;
+
+                            if(failure_handler == 0)
+                                failure_handler = self->connect_failure_event;
+
+                            self->host = host_;
+                            self->port = port_;
+
+                            std::string host;
+                            uint32_t port;
+
+                            self->transport_layer_ = transport_layer_type(self->transport_layer_->service_);
+
+                            self->transport_layer_.connect(host, port,
+                            [=]
+                            {
+                                if(NEXTGEN_DEBUG_4)
+                                    std::cout << "[nextgen::network::smtp_client] Connected" << std::endl;
+
+                            },
+                            [=]
+                            {
+                                failure_handler();
+                            });
+                        }
+
+                        public: virtual void disconnect() const
+                        {
+                            auto self = *this;
+
+                            self->transport_layer_.close();
+                        }
+
+                        public: virtual void send(message_type request_, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        {
+                            auto self = *this;
+
+                            request_.pack();
+
+                            self.send(request_->stream, successful_handler, failure_handler);
+                        }
+
+                        public: virtual void send_and_receive(message_type request_, receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
+                        {
+                            auto self = *this;
+
+                            if(successful_handler == 0)
+                                successful_handler = self->receive_successful_event;
+
+                            if(failure_handler == 0)
+                                failure_handler = self->receive_failure_event;
+
+                            request_.pack();
+
+                            self.send(request_->stream,
+                            [=]()
+                            {
+                                request_->stream.get_buffer(); // bugfix(daemn)
+
+                                if(NEXTGEN_DEBUG_4)
+                                    std::cout << "smtp message sent, now receiving" << std::endl;
+
+                                self.receive(successful_handler, failure_handler);
+                            },
+                            [=]()
+                            {
+                                failure_handler();
+                            });
+                        }
+
+                        public: template<typename stream_type> void send(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        {
+                            auto self = *this;
+
+                            if(successful_handler == 0)
+                                successful_handler = self->send_successful_event;
+
+                            if(failure_handler == 0)
+                                failure_handler = self->send_failure_event;
+
+                            self->transport_layer_.send(stream,
+                            [=]()
+                            {
+                                successful_handler();
+                            },
+                            [=]()
+                            {
+                                failure_handler();
+                            });
+                        }
+
+                        public: void send_helo(send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        {
+                            auto self = *this;
+
+                            message_type m1;
+
+                            m1->content = "220 localhost\r\n";
+
+                            self->send(m1, successful_handler, failure_handler);
+                        }
+
+                        public: virtual void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
+                        {
+                            auto self = *this;
+
+                            if(successful_handler == 0)
+                                successful_handler = self->receive_successful_event;
+
+                            if(failure_handler == 0)
+                                failure_handler = self->receive_failure_event;
+
+                            message_type response2;
+                            auto response = response2; // bugfix(daemn)
+
+                            self->transport_layer_.receive_until("\r\n", response->stream,
+                            [=]()
+                            {
+                                response.unpack_content();
+
+                                if(NEXTGEN_DEBUG_3)
+                                    std::cout << "Y: " << response->content << std::endl;
+
+                                if(response->content.find("EHLO") != std::string::npos)
+                                {
+                                    boost::regex_error paren(boost::regex_constants::error_paren);
+
+                                    try
+                                    {
+                                        boost::match_results<std::string::const_iterator> what;
+                                        boost::regex_constants::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;// | boost::regex_constants::extended | boost::regex_constants::mod_s;//boost::regex_constants::match_max;// | boost::regex_constants::match_stop;
+
+                                        boost::regex r("EHLO (.+)\r\n");
+
+                                        if(boost::regex_search((std::string::const_iterator)response->content.begin(), (std::string::const_iterator)response->content.end(), what, r, flags))
+                                        {
+                                            std::cout << "S: " << "250-localhost\r\n" << std::endl;
+                                            std::cout << "S: " << "250 HELP\r\n" << std::endl;
+
+                                            message_type m1;
+
+                                            m1->content = "250-localhost\r\n"
+                                            "250 HELP\r\n"
+                                            "\r\n";
+
+                                            self.send_and_receive(m1,
+                                            [=]()
+                                            {
+                                                self.receive(successful_handler, failure_handler);
+                                            },
+                                            failure_handler);
+                                        }
+                                        else
+                                            std::cout << "not found";
+                                    }
+                                    catch(const boost::regex_error& e)
+                                    {
+                                        std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+                                    }
+                                }
+                                else if(response->content.find("HELO") != std::string::npos)
+                                {
+                                    self.receive(successful_handler, failure_handler);
+                                }
+                                else if(response->content.find("MAIL FROM") != std::string::npos
+                                || response->content.find("VRFY") != std::string::npos
+                                || response->content.find("RCPT TO") != std::string::npos)
+                                {
+                                    message_type m2;
+                                    m2->content = "250 OK\r\n";
+
+                                    self.send(m2,
+                                    [=]
+                                    {
+                                        self.receive(successful_handler, failure_handler);
+                                    },
+                                    failure_handler);
+                                }
+                                else if(response->content.find("DATA") != std::string::npos)
+                                {
+                                    message_type m2;
+                                    m2->content = "354 GO\r\n";
+
+                                    self->transport_layer_.send(m2->stream,
+                                    [=]
+                                    {
+                                        m2->stream.get_buffer(); // bugfix(daemn)
+
+                                        self->transport_layer_.receive_until("\r\n.\r\n", response->stream,
+                                        [=]()
+                                        {
+                                            successful_handler(response);
+                                        },
+                                        failure_handler);
+                                    },
+                                    failure_handler);
+                                }
+                                else if(response->content.find("QUIT") != std::string::npos)
+                                {
+                                    message_type m2;
+                                    m2->content = "221 BYE\r\n";
+
+                                    self.send(m2,
+                                    [=]
+                                    {
+                                        self.disconnect();
+
+                                        //successful_handler(response);
+                                    },
+                                    [=]
+                                    {
+                                        //successful_handler(response);
+                                    });
+                                }
+                                else
+                                {
+                                    std::cout << "<Mail Server> Disconnecting incompatible client." << std::endl;
+
+                                    self.disconnect();
+
+                                    failure_handler();
+                                }
+                            },
+                            failure_handler);
+                        }
+
+                        public: virtual void accept(port_type port_, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
+                        {
+                            auto self = *this;
+
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
+                            if(successful_handler == null)
+                                successful_handler = self->accept_successful_event;
+
+                            if(failure_handler == 0)
+                                failure_handler = self->accept_failure_event;
+
+                            self->transport_layer_.accept(port_,
+                            [=](transport_layer_type client)
+                            {
+                                successful_handler(this_type(client));
+                            },
+                            [=]()
+                            {
+                                failure_handler();
+                            });
+                        }
+
+                        public: virtual bool is_alive() const
+                        {
+                            auto self = *this;
+
+                            return (self->keep_alive_threshold == 0) ? true : (self->keep_alive_threshold > self->keep_alive_timer.stop());
+                        }
+
+                        public: virtual void set_keep_alive(keep_alive_threshold_type keep_alive_threshold) const
+                        {
+                            auto self = *this;
+
+                            self->keep_alive_threshold = keep_alive_threshold;
+                        }
+
+                        private: struct variables
+                        {
+                            variables(service_type service_) : transport_layer_(service_), keep_alive_threshold(0), host(""), port(0)
+                            {
+
+                            }
+
+                            variables(transport_layer_type transport_layer_) : transport_layer_(transport_layer_), keep_alive_threshold(0), host(""), port(0)
+                            {
+
+                            }
+
+                            ~variables()
+                            {
+
+                            }
+
+                            event<send_successful_event_type> send_successful_event;
+                            event<send_failure_event_type> send_failure_event;
+                            event<receive_successful_event_type> receive_successful_event;
+                            event<receive_failure_event_type> receive_failure_event;
+                            event<connect_successful_event_type> connect_successful_event;
+                            event<connect_failure_event_type> connect_failure_event;
+                            event<accept_failure_event_type> accept_failure_event;
+                            event<accept_successful_event_type> accept_successful_event;
+                            event<disconnect_event_type> disconnect_event;
+
+                            timer keep_alive_timer;
+                            transport_layer_type transport_layer_;
+                            keep_alive_threshold_type keep_alive_threshold;
+                            string host;
+                            uint32_t port;
+                        };
+
+                        NEXTGEN_SHARED_DATA(layer, variables);
+                    };
+                }
+
                 namespace http
                 {
                     class message : public message_base
@@ -3105,6 +3489,9 @@ std::cout << "size: " << self->content.size() << std::endl;
             }
         }
 
+        typedef ip::application::smtp::layer<tcp_socket> smtp_client;
+        typedef ip::application::smtp::message smtp_message;
+
         typedef ip::application::http::layer<tcp_socket> http_client;
         typedef ip::application::http::message http_message;
 
@@ -3267,6 +3654,9 @@ std::cout << "size: " << self->content.size() << std::endl;
         };
 
         typedef server<http_client> http_server;
+        typedef server<smtp_client> smtp_server;
+        typedef server<xml_client> xml_server;
+        typedef server<ngp_client> ngp_server;
 
         template<typename layer_type>
         void create_server(service service_, uint32_t port, std::function<void(layer_type)> successful_handler = 0, std::function<void()> failure_handler = 0)
