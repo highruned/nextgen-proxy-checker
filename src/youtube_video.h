@@ -237,7 +237,7 @@ namespace youtube
                     std::cin >> newaccountcaptcha;
 
                     m1->content = "dsh=" + url_encode(dsh)
-                    + "&ktl=&ktf=&Email=" + url_encode(a1->email)
+                    + "&ktl=&ktf=&Email=" + url_encode(a1->email.to_string())
                     + "&Passwd=" + url_encode(a1->password)
                     + "&PasswdAgain=" + url_encode(a1->password)
                     + "&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)

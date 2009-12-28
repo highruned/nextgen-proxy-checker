@@ -784,10 +784,10 @@ namespace nextgen
                                 std::cout << "[nextgen::network::smtp_client] reconnecting" << std::endl;
 
                             self.disconnect();
-                            self.connect(self->host, self->port, self->proxy_address, successful_handler2, failure_handler2);
+                            self.connect(self->host, self->port, successful_handler2, failure_handler2);
                         }
 
-                        public: virtual void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        public: virtual void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
 
@@ -894,7 +894,7 @@ namespace nextgen
 
                             m1->content = "220 localhost\r\n";
 
-                            self->send(m1, successful_handler, failure_handler);
+                            self.send(m1, successful_handler, failure_handler);
                         }
 
                         public: virtual void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
@@ -920,40 +920,23 @@ namespace nextgen
 
                                 if(response->content.find("EHLO") != std::string::npos)
                                 {
-                                    boost::regex_error paren(boost::regex_constants::error_paren);
+                                    std::string ehlo = nextgen::regex_single_match("EHLO (.+)\r\n", response->content);
 
-                                    try
+                                    std::cout << "S: " << "250-localhost\r\n" << std::endl;
+                                    std::cout << "S: " << "250 HELP\r\n" << std::endl;
+
+                                    message_type m1;
+
+                                    m1->content = "250-localhost\r\n"
+                                    "250 HELP\r\n"
+                                    "\r\n";
+
+                                    self.send(m1,
+                                    [=]()
                                     {
-                                        boost::match_results<std::string::const_iterator> what;
-                                        boost::regex_constants::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;// | boost::regex_constants::extended | boost::regex_constants::mod_s;//boost::regex_constants::match_max;// | boost::regex_constants::match_stop;
-
-                                        boost::regex r("EHLO (.+)\r\n");
-
-                                        if(boost::regex_search((std::string::const_iterator)response->content.begin(), (std::string::const_iterator)response->content.end(), what, r, flags))
-                                        {
-                                            std::cout << "S: " << "250-localhost\r\n" << std::endl;
-                                            std::cout << "S: " << "250 HELP\r\n" << std::endl;
-
-                                            message_type m1;
-
-                                            m1->content = "250-localhost\r\n"
-                                            "250 HELP\r\n"
-                                            "\r\n";
-
-                                            self.send_and_receive(m1,
-                                            [=]()
-                                            {
-                                                self.receive(successful_handler, failure_handler);
-                                            },
-                                            failure_handler);
-                                        }
-                                        else
-                                            std::cout << "not found";
-                                    }
-                                    catch(const boost::regex_error& e)
-                                    {
-                                        std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
-                                    }
+                                        self.receive(successful_handler, failure_handler);
+                                    },
+                                    failure_handler);
                                 }
                                 else if(response->content.find("HELO") != std::string::npos)
                                 {

@@ -653,7 +653,7 @@ namespace nextgen
     template<typename element_type>
     inline element_type* singleton<element_type>::pointer_instance()
     {
-        if(element == null)
+        if(null == element)
             element = new element_type();
 
         //Assert(element);

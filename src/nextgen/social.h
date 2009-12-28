@@ -71,14 +71,14 @@ namespace nextgen
 
         class email
         {
-            public: typedef std::function<void()> receive_successful_event_type;
+            public: typedef std::function<void(std::string)> receive_successful_event_type;
 
             public: void receive(receive_successful_event_type successful_handler) const
             {
                 //self->server->handler_list[self->user + "@" + self->host] = successful_handler;
             }
 
-            public: operator std::string() const
+            public: std::string to_string() const
             {
                 auto self = *this;
 

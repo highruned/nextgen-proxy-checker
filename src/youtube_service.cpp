@@ -6,10 +6,15 @@ class application : public nextgen::singleton<application>
 {
     NEXTGEN_SHARED_CLASS(application, NEXTGEN_SHARED_CLASS_VARS(
     {
+        variables() : mail_server(network_service, 25)
+        {
+
+        }
+
         nextgen::network::service network_service;
         nextgen::database::link main_database;
         nextgen::database::link proxy_database;
-        nextgen::network::server<nextgen::network::smtp_client> mail_server;
+        nextgen::network::smtp_server mail_server;
     }));
 
     public: void run(int, char**);
@@ -118,7 +123,7 @@ void application::run(int argc, char* argv[])
 
                 if(row_list->size() == 0)
                 {
-                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->username + "\", account_email = \"" + a1->email + "\", account_password = \"" + a1->password + "\", person_id = " + to_string(a1->person->id));
+                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->username + "\", account_email = \"" + a1->email.to_string() + "\", account_password = \"" + a1->password + "\", person_id = " + to_string(a1->person->id));
 
                     std::cout << "Executing SQL: " << q2 << std::endl;
 
