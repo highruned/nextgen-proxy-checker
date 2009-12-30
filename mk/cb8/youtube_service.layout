@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Linux Debug" />
-	<File name="../../src/common.h" open="1" top="1" tabpos="5">
-		<Cursor position="67664" topLine="1848" />
+	<File name="../../src/nextgen/content.h" open="1" top="0" tabpos="6">
+		<Cursor position="307" topLine="0" />
 	</File>
-	<File name="../../src/youtube_service.cpp" open="1" top="0" tabpos="1">
-		<Cursor position="1308" topLine="47" />
+	<File name="../../src/nextgen/content_gzip.h" open="1" top="0" tabpos="7">
+		<Cursor position="0" topLine="0" />
 	</File>
-	<File name="../../src/youtube_video.h" open="1" top="0" tabpos="2">
-		<Cursor position="11682" topLine="270" />
+	<File name="../../src/nextgen/database.h" open="1" top="0" tabpos="8">
+		<Cursor position="282" topLine="0" />
+	</File>
+	<File name="../../src/nextgen/network.h" open="1" top="1" tabpos="11">
+		<Cursor position="35066" topLine="765" />
+	</File>
+	<File name="../../src/youtube_service.cpp" open="1" top="0" tabpos="12">
+		<Cursor position="509" topLine="21" />
+	</File>
+	<File name="../../src/youtube_video.h" open="1" top="0" tabpos="13">
+		<Cursor position="8532" topLine="204" />
 	</File>
 </CodeBlocks_layout_file>

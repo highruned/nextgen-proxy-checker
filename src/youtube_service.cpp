@@ -52,9 +52,8 @@ void application::run(int argc, char* argv[])
                     return;
                 }
 
-               // if(self->email_handler_list.find(email) != self->email_handler_list.end())
-                 //   self->email_handler_list[email](r1->content);
-
+                if(self->mail_server->handler_list[email])
+                    self->mail_server->handler_list[email](r1->content);
             });
         });
     });

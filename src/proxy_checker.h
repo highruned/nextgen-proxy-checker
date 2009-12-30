@@ -187,14 +187,11 @@ namespace proxos
             host_type host;
             port_type port;
             id_type id;
-            //type_type type;
+            uint32_t type;
             latency_type latency;
             timer_type timer;
             uint32_t state;
-            uint32_t type;
             uint32_t check_delay;
-            //nextgen::timestamp last_checked;
-            //nextgen::timestamp check_delay; // todo(daemn) rename to interval?
         };
 
         NEXTGEN_SHARED_DATA(proxy, variables);
@@ -226,10 +223,10 @@ namespace proxos
 
                 }
 
+                bool complete;
                 proxy_type proxy;
                 client_type client;
                 callback_type callback;
-                bool complete;
             };
 
             NEXTGEN_SHARED_DATA(job_type, variables);
@@ -723,12 +720,6 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
 
                         if(amount > 0)
                             self->refill_event(amount);
-
-                        size_t after = self->job_list.size();
-
-                        size_t total = after - before;
-
-                        size_t i = 0;
                     }
 
                     self->timer.start();
@@ -773,6 +764,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
             }
 
             bool enabled;
+            size_t active_clients;
             std::string host;
             uint32_t port;
             job_list_type job_list;
@@ -780,7 +772,6 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
             server_type server;
             size_t client_max;
             timer_type timer;
-            size_t active_clients;
             job_list_type::iterator job_position;
             nextgen::event<refill_event_type> refill_event;
         };

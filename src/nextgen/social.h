@@ -8,39 +8,43 @@ namespace nextgen
 {
     namespace social
     {
-        class country
+        namespace detail
         {
-            NEXTGEN_SHARED_CLASS(country, NEXTGEN_SHARED_CLASS_VARS(
+            class country_variables
             {
-                variables() : code("null"), id(0)
+                public: country_variables() : code("null"), id(0)
                 {
 
                 }
 
                 std::string code;
                 uint32_t id;
-            }));
-        };
+            };
 
-        class gender
-        {
-            NEXTGEN_SHARED_CLASS(gender, NEXTGEN_SHARED_CLASS_VARS(
+            class basic_country
             {
-                variables() : code("null"), id(0)
+                NEXTGEN_ATTACH_SHARED_VARIABLES(basic_country, country_variables);
+            };
+
+            class gender_variables
+            {
+                public: gender_variables() : code("null"), id(0)
                 {
 
                 }
 
                 std::string code;
                 uint32_t id;
-            }));
-        };
+            };
 
-        class name
-        {
-            NEXTGEN_SHARED_CLASS(name, NEXTGEN_SHARED_CLASS_VARS(
+            class basic_gender
             {
-                variables() : first("null"), middle("null"), last("null")
+                NEXTGEN_ATTACH_SHARED_VARIABLES(basic_gender, gender_variables);
+            };
+
+            class name_variables
+            {
+                public: name_variables() : first("null"), middle("null"), last("null")
                 {
 
                 }
@@ -48,80 +52,120 @@ namespace nextgen
                 std::string first;
                 std::string middle;
                 std::string last;
-            }));
-        };
+            };
 
-        class person
-        {
-            NEXTGEN_SHARED_CLASS(person, NEXTGEN_SHARED_CLASS_VARS(
+            class basic_name
             {
-                variables() : id(0), postal_code("null")
+                NEXTGEN_ATTACH_SHARED_VARIABLES(basic_name, name_variables);
+            };
+
+            class email_variables
+            {
+                public: email_variables(nextgen::network::smtp_server server) : server(server), user("null"), host("null")
                 {
 
                 }
 
-                nextgen::social::name name;
-                boost::gregorian::date birthday;
-                std::string postal_code;
-                nextgen::social::country country;
-                nextgen::social::gender gender;
-                uint32_t id;
-            }));
-        };
-
-        class email
-        {
-            public: typedef std::function<void(std::string)> receive_successful_event_type;
-
-            public: void receive(receive_successful_event_type successful_handler) const
-            {
-                //self->server->handler_list[self->user + "@" + self->host] = successful_handler;
-            }
-
-            public: std::string to_string() const
-            {
-                auto self = *this;
-
-                return self->user + "@" + self->host;
-            }
-
-            private: NEXTGEN_SHARED_CLASS(email, NEXTGEN_SHARED_CLASS_VARS(
-            {
-                variables(nextgen::network::smtp_server server) : server(server), user("null"), host("null")
-                {
-
-                }
-
+                nextgen::network::smtp_server server;
                 std::string user;
                 std::string host;
-                nextgen::network::smtp_server server;
-            }));
-        };
+            };
 
-        class account
-        {
-            NEXTGEN_SHARED_CLASS(account, NEXTGEN_SHARED_CLASS_VARS(
+            class basic_email
             {
-                variables() : id(0), type(0), username("null"), password("null"), email("null")
+                public: typedef std::function<void(std::string)> receive_successful_event_type;
+
+                public: void receive(receive_successful_event_type successful_handler) const
+                {
+                    auto self = *this;
+
+                    self->server->handler_list[self.to_string()] += successful_handler;
+                }
+
+                public: std::string to_string() const
+                {
+                    auto self = *this;
+
+                    return self->user + "@" + self->host;
+                }
+
+                NEXTGEN_ATTACH_SHARED_VARIABLES(basic_email, email_variables);
+            };
+
+            class person_variables
+            {
+                public: person_variables() : id(0), postal_code("null")
                 {
 
                 }
 
                 uint32_t id;
+                basic_name name;
+                boost::gregorian::date birthday;
+                std::string postal_code;
+                basic_country country;
+                basic_gender gender;
+            };
+
+            class basic_person
+            {
+                NEXTGEN_ATTACH_SHARED_VARIABLES(basic_person, person_variables);
+            };
+
+            class account_variables
+            {
+                public: account_variables() : id(0), type(0), username("null"), password("null"), email("null")
+                {
+
+                }
+
+                uint32_t id;
+                uint32_t type;
                 std::string username;
                 std::string password;
-                uint32_t type;
-                nextgen::social::person person;
                 std::string email;
-            }));
-
-            public: struct types
-            {
-                static const uint32_t none = 0;
-                static const uint32_t google = 1;
-                static const uint32_t youtube = 2;
+                basic_person person;
             };
-        };
+
+            class basic_account
+            {
+                public: struct types
+                {
+                    static const uint32_t none = 0;
+                    static const uint32_t google = 1;
+                    static const uint32_t youtube = 2;
+                };
+
+                NEXTGEN_ATTACH_SHARED_VARIABLES(basic_account, account_variables);
+            };
+
+            class service_variables
+            {
+                public: service_variables()
+                {
+
+                }
+            };
+
+            class basic_service
+            {
+                public: basic_person get_random_person()
+                {
+                    return basic_person();
+                }
+
+                NEXTGEN_ATTACH_SHARED_VARIABLES(basic_service, service_variables);
+            };
+        }
+
+        typedef detail::basic_person person;
+        typedef detail::basic_account account;
+        typedef detail::basic_email email;
+        typedef detail::basic_name name;
+        typedef detail::basic_country country;
+        typedef detail::basic_gender gender;
+
+        typedef detail::basic_service service;
     }
 }
 

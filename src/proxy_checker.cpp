@@ -69,6 +69,10 @@ class address
         catch(boost::regex_error const& e)
         {
             std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+
+            this->valid = false;
+
+            return;
         }
     }
 

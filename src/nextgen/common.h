@@ -109,6 +109,31 @@
     #include <Wincrypt.h>
 #endif
 
+
+#define NEXTGEN_ATTACH_SHARED_VARIABLES(this_type_arg, data_type_arg, ...) \
+    public: typedef data_type_arg ng_data_type; \
+    public: typedef this_type_arg ng_this_type; \
+    protected: boost::shared_ptr<data_type_arg> ng_data; \
+    public: this_type_arg(this_type_arg& t) : ng_data(t.ng_data) { } \
+    public: this_type_arg(this_type_arg const& t) : ng_data(t.ng_data) { } \
+    public: this_type_arg(nextgen::null_t& t) { } \
+    public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : ng_data(new data_type_arg(argument_list...)) { __VA_ARGS__ } \
+    public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : ng_data(t.ng_data) { } \
+    public: bool operator==(this_type_arg const& t) const { return &(*this->ng_data) == &(*t.ng_data); } \
+    public: bool operator==(int t) const { if(t == 0) return this->ng_data == 0; else return 0; } \
+    public: bool operator!=(this_type_arg const& t) const { return !this->operator==(t); } \
+    public: bool operator!=(int t) const { return !this->operator==(t); } \
+    public: void operator=(int t) { if(t == 0) this->ng_data.reset(); } \
+    public: boost::shared_ptr<data_type_arg> const& operator->() const { return this->ng_data; }
+
+#define NEXTGEN_ATTACH_SHARED_BASE(this_type_arg, base_type_arg, ...) \
+    public: typedef this_type_arg ng_this_type; \
+    public: this_type_arg(this_type_arg& t) : base_type_arg(*((base_type_arg*)(&t))) { } \
+    public: this_type_arg(this_type_arg const& t) : base_type_arg(*((base_type_arg*)(&t))) { } \
+    public: this_type_arg(nextgen::null_t& t) : base_type_arg() { } \
+    public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : base_type_arg(argument_list...) { __VA_ARGS__ } \
+    public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : base_type_arg(*((base_type_arg*)(&t))) { }
+
 #define NEXTGEN_SHARED_DATA(this_type, data_type, ...) \
     private: boost::shared_ptr<data_type> ng_data; \
     public: this_type(this_type& t) : ng_data(t.ng_data) { } \
@@ -699,6 +724,14 @@ namespace nextgen
 				return false;
 		}
 
+		public: operator bool()
+		{
+			if(this->list.size() == 0)
+				return true;
+			else
+				return false;
+		}
+
 		public: template<typename ...element_list_type> event<callback_type>& operator()(element_list_type&& ...element_list)
 		{
 			this->call(element_list...);
@@ -720,7 +753,7 @@ namespace nextgen
 			return *this;
 		}
 
-		public: void operator+=(callback_type& t)
+		public: void operator+=(callback_type&& t)
 		{
 			this->add(t);
 		}
