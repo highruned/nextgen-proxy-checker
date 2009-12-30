@@ -10,28 +10,7 @@ bool PROXOS_DEBUG_1 = 1;
 
 namespace proxos
 {
-	class agent
-	{
-	    public: typedef agent this_type;
-	    public: typedef std::string title_type;
 
-        private: struct variables
-        {
-            variables(title_type const& title = "undefined") : title(title)
-            {
-
-            }
-
-            ~variables()
-            {
-
-            }
-
-            title_type title;
-        };
-
-        NEXTGEN_SHARED_DATA(agent, variables);
-	};
 
 	class proxy
 	{

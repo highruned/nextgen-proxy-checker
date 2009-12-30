@@ -91,7 +91,6 @@ std::cout << "timeout for " << milliseconds << std::endl;
 
     namespace network
     {
-
         namespace ip
         {
             namespace network
@@ -103,7 +102,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
 
                 namespace ipv4
                 {
-                    class layer : public layer_base
+                    class basic_layer : public layer_base
                     {
                         public: typedef std::string host_type;
                         public: typedef uint32_t port_type;
@@ -112,49 +111,39 @@ std::cout << "timeout for " << milliseconds << std::endl;
                         {
                             auto self = *this;
 
-                            return self->host_;
+                            return self->host;
                         }
 
-                        public: virtual void set_host(host_type const& host_)
+                        public: virtual void set_host(host_type const& host)
                         {
                             auto self = *this;
 
-                            self->host_ = host_;
+                            self->host = host;
                         }
 
                         public: virtual port_type get_port()
                         {
                             auto self = *this;
 
-                            return self->port_;
+                            return self->port;
                         }
 
-                        public: virtual void set_port(port_type port_)
+                        public: virtual void set_port(port_type port)
                         {
                             auto self = *this;
 
-                            self->port_ = port_;
+                            self->port = port;
                         }
 
                         private: struct variables
                         {
-                            variables() : host_("undefined"), port_(0)
+                            variables(host_type const& host = null, port_type port = null) : host(host), port(port)
                             {
 
                             }
 
-                            variables(host_type const& host_, port_type port_) : host_(host_), port_(port_)
-                            {
-
-                            }
-
-                            ~variables()
-                            {
-
-                            }
-
-                            host_type host_;
-                            port_type port_;
+                            host_type host;
+                            port_type port;
                         };
 
                         NEXTGEN_SHARED_DATA(layer, variables);
@@ -163,7 +152,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
 
                 namespace ipv6
                 {
-                    class layer : public layer_base
+                    class basic_layer : public layer_base
                     {
 
                     };
@@ -171,28 +160,91 @@ std::cout << "timeout for " << milliseconds << std::endl;
             }
         }
 
-        typedef ip::network::ipv4::layer ipv4_address;
-        typedef ip::network::ipv6::layer ipv6_address;
+        typedef ip::network::ipv4::basic_layer ipv4_address;
+        typedef ip::network::ipv6::basic_layer ipv6_address;
 
         namespace ip
         {
             namespace transport
             {
-                class layer_base
+                template<typename NetworkLayerType>
+                struct layer_base_variables
                 {
+                    typedef NetworkLayerType network_layer_type;
 
+                    layer_base_variables(service_type service) : service(service), socket_(service_.get_service()), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(180)
+                    {
+
+                    }
+
+                    event<send_successful_event_type> send_successful_event;
+                    event<send_failure_event_type> send_failure_event;
+                    event<connect_successful_event_type> connect_successful_event;
+                    event<connect_failure_event_type> connect_failure_event;
+                    event<receive_successful_event_type> receive_successful_event;
+                    event<receive_failure_event_type> receive_failure_event;
+                    event<accept_failure_event_type> accept_failure_event;
+                    event<accept_successful_event_type> accept_successful_event;
+                    event<close_event_type> close_event;
+
+                    service_type service_;
+                    socket_type socket_;
+                    resolver_type resolver_;
+                    timer_type timer_;
+                    network_layer_type network_layer_;
+                    timeout_type timeout_;
+                    cancel_handler_type cancel_handler_;
                 };
 
+                template<typename NetworkLayerType, typename VariablesType = layer_base_variables<NetworkLayerType>>
+                class layer_base
+                {
+                    public: typedef VariablesType variables_type;
+
+                    NEXTGEN_ATTACH_SHARED_VARIABLES(layer_base, variables_type);
+                };
+
+                struct accepter_base_variables
+                {
+                    typedef uint32_t port_type;
+
+                    accepter_base_variables() : port(null)
+                    {
+
+                    }
+
+                    port_type port;
+                };
+
+                template<typename VariablesType = accepter_base_variables>
                 class accepter_base
                 {
+                    public: typedef VariablesType variables_type;
 
+                    NEXTGEN_ATTACH_SHARED_VARIABLES(accepter_base, variables_type);
                 };
 
                 namespace tcp
                 {
-
-                    class accepter : public accepter_base
+                    struct basic_accepter_variables : public accepter_base_variables
                     {
+                        typedef accepter_base_variables base_type;
+                        typedef asio::ip::tcp::acceptor accepter_type;
+                        typedef service service_type;
+
+                        basic_accepter_variables(service_type service) : base_type(), accepter_(service.get_service())
+                        {
+
+                        }
+
+                        accepter_type accepter_;
+                    }
+
+                    template<typename VariablesType = basic_accepter_variables>
+                    class basic_accepter : public accepter_base<VariablesType>
+                    {
+                        public: VariablesType variables_type;
+                        public: accepter_base<variables_type> base_type;
                         private: typedef asio::ip::tcp::acceptor accepter_type;
                         private: typedef asio::ip::tcp::socket socket_type;
                         private: typedef asio::ip::tcp::endpoint endpoint_type;
@@ -203,7 +255,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
                         {
                             auto self = *this;
 
-                            asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
+                            endpoint_type endpoint(asio::ip::tcp::v4(), port);
 
                             try
                             {
@@ -239,44 +291,38 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             return self->port;
                         }
 
-                        public: template<typename handler_type> void accept(socket_type& socket_, handler_type handler_)
+                        public: template<typename handler_type> void accept(socket_type& socket, handler_type handler)
                         {
                             auto self = *this;
 
-                            //if(self.is_open())
-                            //{
-                                self->accepter_.async_accept(socket_, handler_);
-                            //}
-                            //else
-                            //{
-                            //    asio::error_code ec = asio::error_code(asio::error::try_again);
-                            //    handler_(ec);
-                            //}
+                            self->accepter_.async_accept(socket, handler);
                         }
 
-                        private: struct variables
-                        {
-                            variables(service_type service_) : port(0), accepter_(service_.get_service())
-                            {
-
-                            }
-
-                            ~variables()
-                            {
-
-                            }
-
-                            port_type port;
-                            accepter_type accepter_;
-                        };
-
-                        NEXTGEN_SHARED_DATA(accepter, variables);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_accepter, base_type);
                     };
 
-                    template<typename network_layer_type>
-                    class layer : public layer_base
+                    template<typename NetworkLayerType>
+                    struct basic_layer_variables : public layer_base_variables<NetworkLayerType>
                     {
-                        public: typedef layer<network_layer_type> this_type;
+                        typedef NetworkLayerType network_layer_type;
+                        typedef layer_base_variables<network_layer_type> base_type;
+
+                        basic_layer_variables(service_type service) : base_type(), accepter_(service)
+                        {
+
+                        }
+
+                        accepter_type accepter_;
+
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                    };
+
+                    template<typename NetworkLayerType>
+                    class basic_layer : public layer_base<basic_layer_variables<NetworkLayerType>>
+                    {
+                        public: typedef NetworkLayerType network_layer_type;
+                        public: typedef basic_layer_variables<NetworkLayerType> variables_type;
+                        public: typedef layer_base<variables_type> base_type;
                         public: typedef service service_type;
                         public: typedef std::string host_type;
                         public: typedef uint32_t port_type;
@@ -331,11 +377,11 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             return self->network_layer_.get_host();
                         }
 
-                        public: virtual void set_host(host_type const& host_)
+                        public: virtual void set_host(host_type const& host)
                         {
                             auto self = *this;
 
-                            self->network_layer_.set_host(host_);
+                            self->network_layer_.set_host(host);
                         }
 
                         public: virtual port_type get_port()
@@ -712,35 +758,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             return self->timer_;
                         }
 
-                        private: NEXTGEN_SHARED_CLASS(layer, NEXTGEN_SHARED_CLASS_VARS(
-                        {
-                            variables(service_type service_) : service_(service_), socket_(service_.get_service()), accepter_(service_), resolver_(service_.get_service()), timer_(service_.get_service()), timeout_(180)
-                            {
-
-                            }
-
-                            event<send_successful_event_type> send_successful_event;
-                            event<send_failure_event_type> send_failure_event;
-                            event<connect_successful_event_type> connect_successful_event;
-                            event<connect_failure_event_type> connect_failure_event;
-                            event<receive_successful_event_type> receive_successful_event;
-                            event<receive_failure_event_type> receive_failure_event;
-                            event<accept_failure_event_type> accept_failure_event;
-                            event<accept_successful_event_type> accept_successful_event;
-                            event<close_event_type> close_event;
-
-                            service_type service_;
-                            socket_type socket_;
-                            accepter_type accepter_;
-                            resolver_type resolver_;
-                            timer_type timer_;
-                            network_layer_type network_layer_;
-                            timeout_type timeout_;
-                            cancel_handler_type cancel_handler_;
-                        }),
-                        {
-                            this->initialize();
-                        });
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer, base_type);
                     };
                 }
             }
@@ -752,67 +770,89 @@ std::cout << "timeout for " << milliseconds << std::endl;
         {
             namespace application
             {
-                template<typename message>
-                class layer_base
+                template<typename TransportLayerType, typename MessageType>
+                struct layer_base_variables
                 {
-                    public: typedef service service_type;
-                    public: typedef message message_type;
-                    public: typedef timer timer_type;
-                    public: typedef std::string host_type;
-                    public: typedef uint32_t port_type;
+                    public: typedef MessageType message_type;
+                    public: typedef TransportLayerType transport_layer_type;
 
-                    public: typedef std::function<void()> base_event_type;
-                    public: typedef base_event_type send_successful_event_type;
-                    public: typedef base_event_type send_failure_event_type;
-                    public: typedef std::function<void(message_type)> receive_successful_event_type;
-                    public: typedef base_event_type receive_failure_event_type;
-                    public: typedef std::function<void(message_type)> request_successful_event_type;
-                    public: typedef base_event_type request_failure_event_type;
-                    public: typedef base_event_type connect_successful_event_type;
-                    public: typedef base_event_type connect_failure_event_type;
-                    public: typedef base_event_type disconnect_event_type;
+                    layer_base_variables(service_type service) : transport_layer(service), keep_alive_threshold(0), proxy(null_str), host(null_str), port(null)
+                    {
+
+                    }
+
+                    layer_base_variables(transport_layer_type transport_layer) : transport_layer(transport_layer), keep_alive_threshold(0), proxy(null_str), host(null_str), port(null)
+                    {
+
+                    }
+
+                    event<std::function<void()>> send_successful_event;
+                    event<std::function<void()>> send_failure_event;
+                    //event<std::function<void(message_type)>> receive_successful_event;
+                    event<std::function<void()>> receive_failure_event;
+                    event<std::function<void()>> connect_successful_event;
+                    event<std::function<void()>> connect_failure_event;
+                    //event<accept_successful_event_type> accept_successful_event;
+                    event<std::function<void()>> accept_failure_event;
+                    event<std::function<void()>> disconnect_event;
+
+                    timer keep_alive_timer;
+                    transport_layer_type transport_layer;
+                    uint32_t keep_alive_threshold;
+                    std::string proxy;
+                    ipv4_address proxy_address;
+                    std::string host;
+                    uint32_t port;
                 };
 
-                namespace detail
+                template<typename TransportLayerType, typename MessageType, typename VariablesType = layer_base_variables<TransportLayerType, MessageType>>
+                class layer_base
                 {
-                    class message_shared_base
-                    {
-                        public: message_shared_base() : state(0)
-                        {
+                    public: typedef VariablesType variables_type;
+                    public: typedef MessageType message_type;
+                    public: typedef TransportLayerType transport_layer_type;
 
-                        }
+                    NEXTGEN_ATTACH_SHARED_VARIABLES(layer_base, variables_type);
+                };
 
-                        public: std::string content;
-                        public: byte_array stream;
-                        public: uint32_t state;
-                    };
-
-                    template<typename variables_type>
-                    class message_base
+                struct message_base_variables
+                {
+                    message_base_variables() : state(0)
                     {
 
-                        NEXTGEN_ATTACH_SHARED_VARIABLES(message_base, variables_type);
+                    }
 
-                    };
-                }
+                    std::string content;
+                    byte_array stream;
+                    uint32_t state;
+                };
 
+                template<typename VariablesType>
+                class message_base
+                {
+                    public: typedef VariablesType variables_type;
+
+                    NEXTGEN_ATTACH_SHARED_VARIABLES(message_base, variables_type);
+                };
 
                 namespace smtp
                 {
-                    class message_shared_base : public detail::message_shared_base
+                    struct basic_message_variables : public message_base_variables
                     {
-                        public: message_shared_base() : detail::message_shared_base()
+                        typedef message_base_variables base_type;
+
+                        basic_message_variables() : base_type()
                         {
 
                         }
-
-
                     };
 
-                    template<typename variables_type>
-                    class basic_message : public detail::message_base<variables_type>
+                    template<typename VariablesType = basic_message_variables>
+                    class basic_message : public message_base<VariablesType>
                     {
-                        typedef byte_array stream_type;
+                        public: typedef VariablesType variables_type;
+                        public: typedef byte_array stream_type;
+
                         public: struct state_type
                         {
                             static const uint32_t none = 0;
@@ -843,18 +883,30 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             self->content += std::string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
                         }
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, detail::message_base<variables_type>);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, variables_type);
                     };
 
-                    typedef basic_message<message_shared_base> message;
+                    //typedef basic_message<basic_message_variables> message;
 
-                    template<typename transport_layertype>
-                    class layer : public layer_base<message>
+                    template<typename TransportLayerType, typename MessageType>
+                    struct basic_layer_variables : layer_base_variables<TransportLayerType, MessageType>
                     {
-                        public: typedef layer<transport_layertype> this_type;
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef MessageType message_type;
+                        public: typedef layer_base_variables<transport_layer_type, message_type> base_type;
+
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                    };
+
+                    template<typename TransportLayerType>
+                    class basic_layer : public layer_base<TransportLayerType, basic_message<>, basic_layer_variables<TransportLayerType, basic_message<>>>
+                    {
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef basic_message<> message_type;
+                        public: typedef basic_layer_variables<transport_layer_type, message_type> variables_type;
+                        public: typedef layer_base<variables_type> base_type;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
-                        public: typedef base_event_type accept_failure_event_type;
-                        public: typedef float keep_alive_threshold_type;
+                        public: typedef std::function<void(message_type)> receive_successful_event_type;
 
                         public: virtual void reconnect(connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
@@ -886,7 +938,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             std::string host;
                             uint32_t port;
 
-                            self->transport_layer = transport_layertype(self->transport_layer->service_);
+                            self->transport_layer = transport_layer_type(self->transport_layer->service_);
 
                             self->transport_layer.connect(host, port,
                             [=]
@@ -974,7 +1026,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             auto response = response2; // bugfix(daemn)
 
 
-                                std::cout << "S: " << "trying to receive rn" << std::endl;
+                            std::cout << "S: " << "trying to receive rn" << std::endl;
 
                             self->transport_layer.receive_until("\r\n", response->stream,
                             [=]()
@@ -1096,7 +1148,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
                                 failure_handler = self->accept_failure_event;
 
                             self->transport_layer.accept(port_,
-                            [=](transport_layertype client)
+                            [=](transport_layer_type client)
                             {
                                 successful_handler(this_type(client));
                             },
@@ -1120,44 +1172,30 @@ std::cout << "timeout for " << milliseconds << std::endl;
                             self->keep_alive_threshold = keep_alive_threshold;
                         }
 
-                        private: struct variables
-                        {
-                            variables(service_type service_) : transport_layer(service_), keep_alive_threshold(0), host(""), port(0)
-                            {
-
-                            }
-
-                            variables(transport_layertype transport_layer) : transport_layer(transport_layer), keep_alive_threshold(0), host(""), port(0)
-                            {
-
-                            }
-
-                            event<send_successful_event_type> send_successful_event;
-                            event<send_failure_event_type> send_failure_event;
-                            event<receive_successful_event_type> receive_successful_event;
-                            event<receive_failure_event_type> receive_failure_event;
-                            event<connect_successful_event_type> connect_successful_event;
-                            event<connect_failure_event_type> connect_failure_event;
-                            event<accept_failure_event_type> accept_failure_event;
-                            event<accept_successful_event_type> accept_successful_event;
-                            event<disconnect_event_type> disconnect_event;
-
-                            timer keep_alive_timer;
-                            transport_layertype transport_layer;
-                            keep_alive_threshold_type keep_alive_threshold;
-                            std::string host;
-                            uint32_t port;
-                        };
-
-                        NEXTGEN_SHARED_DATA(layer, variables);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer, variables_type);
                     };
                 }
 
                 namespace http
                 {
-                    class message_shared_base : public detail::message_shared_base
+                    struct basic_agent_variables
                     {
-                        public:
+                        basic_agent_variables(std::string const& title = null) : title(title)
+                        {
+
+                        }
+
+                        std::string title;
+                    };
+
+                    class basic_agent
+                    {
+                        NEXTGEN_ATTACH_SHARED_VARIABLES(basic_agent, basic_agent_variables);
+                    };
+
+                    struct basic_message_variables : public message_base_variables
+                    {
+                        typedef message_base_variables base_type;
                         typedef std::string raw_header_list_type;
                         typedef boost::unordered_map<std::string, std::string> header_list_type;
                         typedef uint32_t status_code_type;
@@ -1175,7 +1213,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
                         typedef std::string status_description_type;
                         typedef std::string method_type;
 
-                        message_shared_base() : detail::message_shared_base(), status_code(0), version("1.1")
+                        basic_message_variables() : base_type(), status_code(0), version("1.1")
                         {
 
                         }
@@ -1185,7 +1223,6 @@ std::cout << "timeout for " << milliseconds << std::endl;
                         header_list_type header_list;
                         raw_header_list_type raw_header_list;
                         status_code_type status_code;
-                        //raw_post_list_type raw_post_list;
                         post_list_type post_list;
                         status_description_type status_description;
                         id_type id;
@@ -1200,9 +1237,11 @@ std::cout << "timeout for " << milliseconds << std::endl;
                         std::string scheme;
                     };
 
-                    template<typename variables_type>
-                    class basic_message : public detail::message_base<variables_type>
+                    template<typename VariablesType = basic_message_variables>
+                    class basic_message : public message_base<VariablesType>
                     {
+                        typedef VariablesType variables_type;
+                        typedef message_base<variables_type> base_type;
                         typedef std::string raw_header_list_type;
                         typedef boost::unordered_map<std::string, std::string> header_list_type;
                         typedef uint32_t status_code_type;
@@ -1562,15 +1601,26 @@ std::cout << "size: " << self->content.size() << std::endl;
                             }
                         }
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, detail::message_base<variables_type>);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, base_type);
                     };
 
-                    typedef basic_message<message_shared_base> message;
-
-                    template<typename transport_layertype>
-                    class layer : public layer_base<message>
+                    template<typename TransportLayerType, typename MessageType = basic_message<>>
+                    struct basic_layer_variables : layer_base_variables<TransportLayerType, MessageType>
                     {
-                        public: typedef layer<transport_layertype> this_type;
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef MessageType message_type;
+                        public: typedef layer_base_variables<transport_layer_type, message_type> base_type;
+
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                    };
+
+                    template<typename TransportLayerType>
+                    class basic_layer : public layer_base<TransportLayerType, basic_message<>, basic_layer_variables<TransportLayerType, basic_message<>>>
+                    {
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef basic_message<> message_type;
+                        public: typedef basic_layer_variables<transport_layer_type, message_type> variables_type;
+                        public: typedef layer_base<variables_type> base_type;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
                         public: typedef float keep_alive_threshold_type;
@@ -1618,7 +1668,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 port = self->port;
                             }
 
-                            self->transport_layer = transport_layertype(self->transport_layer->service_);
+                            self->transport_layer = transport_layer_type(self->transport_layer->service_);
 
                             self->transport_layer.connect(host, port,
                             [=]
@@ -1686,48 +1736,18 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                 }
                                                 break;
 
-                                                case 0x5b:
-                                                {
-                                                    if(NEXTGEN_DEBUG_4)
-                                                        std::cout << "rejected socks4 response" << std::endl;
-
-                                                    failure_handler();
-                                                }
-                                                break;
-
-                                                case 0x5c:
-                                                {
-                                                    if(NEXTGEN_DEBUG_4)
-                                                        std::cout << "failed1 socks4 response" << std::endl;
-
-                                                    failure_handler();
-                                                }
-                                                break;
-
-                                                case 0x52:
+                                                default:
                                                 {
                                                     if(NEXTGEN_DEBUG_4)
                                                         std::cout << "failed2 socks4 response" << std::endl;
 
                                                     failure_handler();
                                                 }
-                                                break;
-
-                                                default:
-                                                {
-                                                    failure_handler();
-                                                }
                                             }
                                         },
-                                        [=]()
-                                        {
-                                            failure_handler();
-                                        });
+                                        failure_handler);
                                     },
-                                    [=]()
-                                    {
-                                        failure_handler();
-                                    });
+                                    failure_handler);
                                 }
                                 else if(self->proxy == "socks5")
                                 {
@@ -1804,40 +1824,25 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                         // todo(daemn) we've gotten this far, assume we're good.
                                                         successful_handler();
                                                     },
-                                                    [=]()
-                                                    {
-                                                        failure_handler();
-                                                    });
+                                                    failure_handler);
                                                 },
-                                                [=]()
-                                                {
-                                                    failure_handler();
-                                                });
+                                                failure_handler);
                                             }
                                             else
                                             {
                                                 failure_handler();
                                             }
                                         },
-                                        [=]()
-                                        {
-                                            failure_handler();
-                                        });
+                                        failure_handler);
                                     },
-                                    [=]()
-                                    {
-                                        failure_handler();
-                                    });
+                                    failure_handler);
                                 }
                                 else
                                 {
                                     successful_handler();
                                 }
                             },
-                            [=]
-                            {
-                                failure_handler();
-                            });
+                            failure_handler);
                         }
 
                         public: virtual void disconnect() const
@@ -1878,10 +1883,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                 self.receive(successful_handler, failure_handler);
                             },
-                            [=]()
-                            {
-                                failure_handler();
-                            });
+                            failure_handler);
                         }
 
                         public: template<typename stream_type> void send(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
@@ -1894,15 +1896,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                             if(failure_handler == 0)
                                 failure_handler = self->send_failure_event;
 
-                            self->transport_layer.send(stream,
-                            [=]()
-                            {
-                                successful_handler();
-                            },
-                            [=]()
-                            {
-                                failure_handler();
-                            });
+                            self->transport_layer.send(stream, successful_handler, failure_handler);
                         }
 
                         private: virtual void receive_chunked_data(message_type response, size_t length = 1, base_event_type successful_handler = 0, base_event_type failure_handler = 0) const
@@ -1920,7 +1914,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                         std::cout << "CONTENT L BEFORE: " << response->content.size() << std::endl;
 
-                                        std::cout << "CONTENT BEFORE: " <<  to_hex(response->content) << std::endl;
+                                        //std::cout << "CONTENT BEFORE: " <<  to_hex(response->content) << std::endl;
 
                                 //int l = static_cast<int>(strtol(length, NULL, 16));
 
@@ -1988,7 +1982,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         {
                                             //response->content.erase(response->content.size() - 2, 2); //blank line
 
-                                            std::cout << "after: " << to_hex(response->content) << std::endl;
+                                            //std::cout << "after: " << to_hex(response->content) << std::endl;
 
                                             successful_handler();
                                         }
@@ -2240,7 +2234,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 failure_handler = self->accept_failure_event;
 
                             self->transport_layer.accept(port_,
-                            [=](transport_layertype client)
+                            [=](transport_layer_type client)
                             {
                                 successful_handler(this_type(client));
                             },
@@ -2264,53 +2258,18 @@ std::cout << "size: " << self->content.size() << std::endl;
                             self->keep_alive_threshold = keep_alive_threshold;
                         }
 
-                        private: struct variables
-                        {
-                            variables(service_type service_) : transport_layer(service_), keep_alive_threshold(0), proxy(""), host(""), port(0)
-                            {
-
-                            }
-
-                            variables(transport_layertype transport_layer) : transport_layer(transport_layer), keep_alive_threshold(0), proxy(""), host(""), port(0)
-                            {
-
-                            }
-
-                            ~variables()
-                            {
-
-                            }
-
-                            event<send_successful_event_type> send_successful_event;
-                            event<send_failure_event_type> send_failure_event;
-                            event<receive_successful_event_type> receive_successful_event;
-                            event<receive_failure_event_type> receive_failure_event;
-                            event<connect_successful_event_type> connect_successful_event;
-                            event<connect_failure_event_type> connect_failure_event;
-                            event<accept_failure_event_type> accept_failure_event;
-                            event<accept_successful_event_type> accept_successful_event;
-                            event<disconnect_event_type> disconnect_event;
-
-                            timer keep_alive_timer;
-                            transport_layertype transport_layer;
-                            keep_alive_threshold_type keep_alive_threshold;
-                            std::string proxy;
-                            ipv4_address proxy_address;
-                            std::string host;
-                            uint32_t port;
-                        };
-
-                        NEXTGEN_SHARED_DATA(layer, variables);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer, base_type);
                     };
                 }
 
                 namespace xml
                 {
-                    class message_shared_base : detail::message_shared_base
+                    class basic_message_variables : public message_base_variables
                     {
+                        typedef message_base_variables base_type;
                         typedef std::string data_type;
 
-                        public: message_shared_base() : detail::message_shared_base()
+                        public: basic_message_variables() : base_type()
                         {
 
                         }
@@ -2318,9 +2277,11 @@ std::cout << "size: " << self->content.size() << std::endl;
                         data_type data;
                     };
 
-                    template<typename variables_type>
-                    class basic_message : public detail::message_base<variables_type>
+                    template<typename VariablesType = basic_message_variables>
+                    class basic_message : public message_base<VariablesType>
                     {
+                        typedef VariablesType variables_type;
+                        typedef message_base<variables_type> base_type;
                         typedef std::string data_type;
                         typedef byte_array stream_type;
 
@@ -2353,15 +2314,28 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                         }
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, detail::message_base<variables_type>);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, base_type);
                     };
 
-                    typedef basic_message<message_shared_base> message;
+                    //typedef basic_message<message_shared_base> message;
 
-                    template<typename transport_layer_type>
-                    class layer : public layer_base<message>
+                    template<typename TransportLayerType, typename MessageType = basic_message<>>
+                    struct basic_layer_variables : layer_base_variables<TransportLayerType, MessageType>
                     {
-                        public: typedef layer<transport_layer_type> this_type;
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef MessageType message_type;
+                        public: typedef layer_base_variables<transport_layer_type, message_type> base_type;
+
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                    };
+
+                    template<typename TransportLayerType>
+                    class basic_layer : public layer_base<TransportLayerType, basic_message<>, basic_layer_variables<TransportLayerType, basic_message<>>>
+                    {
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef basic_message<> message_type;
+                        public: typedef basic_layer_variables<transport_layer_type, message_type> variables_type;
+                        public: typedef layer_base<variables_type> base_type;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
 
@@ -2463,44 +2437,17 @@ std::cout << "size: " << self->content.size() << std::endl;
                             });
                         }
 
-                        private: struct variables
-                        {
-                            variables(service_type service_) : transport_layer(service_)
-                            {
-
-                            }
-
-                            variables(transport_layer_type transport_layer) : transport_layer(transport_layer)
-                            {
-
-                            }
-
-                            ~variables()
-                            {
-
-                            }
-
-                            event<send_successful_event_type> send_successful_event;
-                            event<send_failure_event_type> send_failure_event;
-                            event<receive_successful_event_type> receive_successful_event;
-                            event<receive_failure_event_type> receive_failure_event;
-                            event<connect_successful_event_type> connect_successful_event;
-                            event<connect_failure_event_type> connect_failure_event;
-                            event<accept_failure_event_type> accept_failure_event;
-                            event<accept_successful_event_type> accept_successful_event;
-
-                            transport_layer_type transport_layer;
-                        };
-
-                        NEXTGEN_SHARED_DATA(layer, variables);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer, base_type);
                     };
                 }
 
                 namespace ngp
                 {
-                    class message_shared_base : detail::message_shared_base
+                    struct basic_message_variables : public message_base_variables
                     {
-                        public: message_shared_base() : detail::message_shared_base()
+                        typedef message_base_variables base_type;
+
+                        basic_message_variables() : base_type()
                         {
 
                         }
@@ -2510,9 +2457,12 @@ std::cout << "size: " << self->content.size() << std::endl;
                         byte_array data;
                     };
 
-                    template<typename variables_type>
-                    class basic_message : public detail::message_base<variables_type>
+                    template<typename VariablesType = basic_message_variables>
+                    class basic_message : public message_base<VariablesType>
                     {
+                        typedef VariablesType variables_type;
+                        typedef message_base<variables_type> base_type;
+
                         public: void pack() const
                         {
                             auto self = *this;
@@ -2538,15 +2488,26 @@ std::cout << "size: " << self->content.size() << std::endl;
                             }
                         }
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, detail::message_base<variables_type>);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_message, base_type);
                     };
 
-                    typedef basic_message<message_shared_base> message;
-
-                    template<typename transport_layertype>
-                    class layer : public layer_base<message>
+                    template<typename TransportLayerType, typename MessageType = basic_message<>>
+                    struct basic_layer_variables : layer_base_variables<TransportLayerType, MessageType>
                     {
-                        public: typedef layer<transport_layertype> this_type;
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef MessageType message_type;
+                        public: typedef layer_base_variables<transport_layer_type, message_type> base_type;
+
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                    };
+
+                    template<typename TransportLayerType>
+                    class basic_layer : public layer_base<TransportLayerType, basic_message<>, basic_layer_variables<TransportLayerType, basic_message<>>>
+                    {
+                        public: typedef TransportLayerType transport_layer_type;
+                        public: typedef basic_message<> message_type;
+                        public: typedef basic_layer_variables<transport_layer_type, message_type> variables_type;
+                        public: typedef layer_base<variables_type> base_type;
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
 
@@ -2586,10 +2547,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                             {
                                 successful_handler();
                             },
-                            [=]()
-                            {
-                                failure_handler();
-                            });
+                            failure_handler);
                         }
 
                         public: virtual void receive(receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
@@ -2618,10 +2576,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                 self.receive(successful_handler, failure_handler);
                             },
-                            [=]()
-                            {
-                                failure_handler();
-                            });
+                            failure_handler);
                         }
 
                         public: virtual void accept(port_type port, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
@@ -2638,62 +2593,31 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 failure_handler = self->accept_failure_event;
 
                             self->transport_layer.accept(port,
-                            [=](transport_layertype client)
+                            [=](transport_layer_type client)
                             {
                                 successful_handler(this_type(client));
                             },
-                            [=]()
-                            {
-                                failure_handler();
-                            });
+                            failure_handler);
                         }
 
-                        private: struct variables
-                        {
-                            variables(service_type service_) : transport_layer(service_)
-                            {
-
-                            }
-
-                            variables(transport_layertype transport_layer) : transport_layer(transport_layer)
-                            {
-
-                            }
-
-                            ~variables()
-                            {
-
-                            }
-
-                            event<send_successful_event_type> send_successful_event;
-                            event<send_failure_event_type> send_failure_event;
-                            event<receive_successful_event_type> receive_successful_event;
-                            event<receive_failure_event_type> receive_failure_event;
-                            event<connect_successful_event_type> connect_successful_event;
-                            event<connect_failure_event_type> connect_failure_event;
-                            event<accept_failure_event_type> accept_failure_event;
-                            event<accept_successful_event_type> accept_successful_event;
-
-                            transport_layertype transport_layer;
-                        };
-
-                        NEXTGEN_SHARED_DATA(layer, variables);
+                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer, base_type);
                     };
                 }
             }
         }
 
-        typedef ip::application::smtp::layer<tcp_socket> smtp_client;
-        typedef ip::application::smtp::message smtp_message;
+        typedef ip::application::smtp::basic_message<> smtp_message;
+        typedef ip::application::smtp::basic_layer<tcp_socket, smtp_message> smtp_client;
 
-        typedef ip::application::http::layer<tcp_socket> http_client;
-        typedef ip::application::http::message http_message;
+        typedef ip::application::http::basic_message<> http_message;
+        typedef ip::application::http::basic_layer<tcp_socket, http_message> http_client;
+        typedef ip::application::http::basic_agent http_agent;
 
-        typedef ip::application::xml::layer<tcp_socket> xml_client;
-        typedef ip::application::xml::message xml_message;
+        typedef ip::application::xml::basic_message<> xml_message;
+        typedef ip::application::xml::basic_layer<tcp_socket, xml_message> xml_client;
 
-        typedef ip::application::ngp::layer<tcp_socket> ngp_client;
-        typedef ip::application::ngp::message ngp_message;
+        typedef ip::application::ngp::basic_message<> ngp_message;
+        typedef ip::application::ngp::basic_layer<tcp_socket, ngp_message> ngp_client;
 
         template<typename layer>
         class server_base

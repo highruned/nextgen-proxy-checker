@@ -124,7 +124,7 @@
     public: bool operator!=(this_type_arg const& t) const { return !this->operator==(t); } \
     public: bool operator!=(int t) const { return !this->operator==(t); } \
     public: void operator=(int t) { if(t == 0) this->ng_data.reset(); } \
-    public: boost::shared_ptr<data_type_arg> const& operator->() const { return this->ng_data; }
+    public: boost::shared_ptr<data_type_arg> const& operator->() const { if(this->ng_data == 0) std::cout << "undefined ng_data in " << typeid(*this).name() << std::endl; return this->ng_data; }
 
 #define NEXTGEN_ATTACH_SHARED_BASE(this_type_arg, base_type_arg, ...) \
     public: typedef this_type_arg ng_this_type; \
@@ -256,7 +256,7 @@ int to_int(std::string element)
 
         if(boost::regex_search(start, end, what, boost::regex("([\\-0-9]+)"), flags))
         {
-            if(NEXTGEN_DEBUG_4)
+            if(NEXTGEN_DEBUG_3)
                 std::cout << "converting to int: " << what[1] << std::endl;
 
             return boost::lexical_cast<int>(what[1]);

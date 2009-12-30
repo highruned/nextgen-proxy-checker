@@ -12,22 +12,25 @@ bool YOUTUBE_DEBUG_1 = 1;
 
 namespace youtube
 {
-    class video
+    struct video_variables
     {
-        NEXTGEN_SHARED_CLASS(video, NEXTGEN_SHARED_CLASS_VARS(
+        video_variables() : id(nextgen::null_str), session_views(0)
         {
-            variables() : id(nextgen::null_str)
-            {
 
-            }
+        }
 
-            std::string id;
-        }));
+        std::string id;
+        uint32_t session_views;
     };
 
-    class account_variables : public nextgen::social::basic_account_variables
+    class video
     {
-        public: account_variables() : nextgen::social::basic_account_variables()
+        NEXTGEN_ATTACH_SHARED_VARIABLES(video, video_variables);
+    };
+
+    struct account_variables : public nextgen::social::basic_account_variables
+    {
+        account_variables() : nextgen::social::basic_account_variables()
         {
 
         }
@@ -44,23 +47,20 @@ namespace youtube
 
         NEXTGEN_ATTACH_SHARED_BASE(account, nextgen::social::basic_account<account_variables>);
     };
-/*
-    class account // extends nextgen::social::account
+
+    struct client_variables
     {
-        NEXTGEN_SHARED_CLASS(account, NEXTGEN_SHARED_CLASS_VARS(
+        client_variables(nextgen::network::service network_service) : network_service(network_service), client(network_service)
         {
-            variables() : username(nextgen::null_str), password(nextgen::null_str), email(nextgen::null), person(nextgen::null), type(0)
-            {
 
-            }
+        }
 
-            std::string username;
-            std::string password;
-            nextgen::social::email email;
-            nextgen::social::person person;
-            uint32_t type;
-        }));
-    };*/
+        nextgen::network::service network_service;
+        nextgen::network::http_client client;
+
+        proxos::proxy proxy;
+        proxos::agent agent;
+    };
 
     class client
     {
@@ -71,7 +71,7 @@ namespace youtube
             size_t view_count = 0;
 
             if(self->agent == 0)
-                self->agent = proxos::agent("Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5");
+                self->agent = nextgen::network::http_agent("Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5");
 
             if(YOUTUBE_DEBUG_1)
                 std::cout << "user agent: " << self->agent->title << std::endl;
@@ -218,7 +218,8 @@ namespace youtube
         {
             auto self = *this;
 
-            self->client.connect("google.com", 80, nextgen::network::ipv4_address("google.com", 80),
+            self->client->proxy = "http";
+            self->client.connect("google.com", 80, nextgen::network::ipv4_address("85.185.25.250", 3128), //"219.93.178.162", 3128),
             [=]
             {
                 nextgen::network::http_message m1;
@@ -248,6 +249,7 @@ namespace youtube
                     std::string newaccounturl = nextgen::regex_single_match("id=\"newaccounturl\".{1,15}value=\"(.+?)\"", r1->content);
                     std::string newaccounttoken_audio = nextgen::regex_single_match("id=\"newaccounttoken_audio\".{1,15}value=\"(.+?)\"", r1->content);
                     std::string newaccounturl_audio = nextgen::regex_single_match("id=\"newaccounturl_audio\".{1,15}value=\"(.+?)\"", r1->content);
+                    std::string requested_tos_location = nextgen::regex_single_match("value=\"(.+?)\".{1,30}selected", r1->content);
 
                     std::cout << "https://www.google.com/accounts/Captcha?ctoken=" + ctoken << std::endl;
 
@@ -256,15 +258,19 @@ namespace youtube
                     std::cin >> newaccountcaptcha;
 
                     m1->content = "dsh=" + url_encode(dsh)
-                    + "&ktl=&ktf=&Email=" + url_encode(a1->user->email.to_string())
+                    + "&ktl="
+                    + "&ktf=Email+Passwd+PasswdAgain+newaccountcaptcha+"
+                    + "&Email=" + url_encode(a1->user->email.to_string())
                     + "&Passwd=" + url_encode(a1->user->password)
                     + "&PasswdAgain=" + url_encode(a1->user->password)
-                    + "&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)
+                    + "&PersistentCookie=yes&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)
                     + "&newaccounturl=" + url_encode(newaccounturl)
                     + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
                     + "&newaccounturl_audio=" + url_encode(newaccounturl_audio)
                     + "&newaccountcaptcha=" + url_encode(newaccountcaptcha)
-                    + "&privacy_policy_url=http%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fprivacy.html&requested_tos_location=CA&requested_tos_language=en&served_tos_location=CA&served_tos_language=en&submitbutton=I+accept.+Create+my+account.";
+                    + "&privacy_policy_url=http%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fprivacy.html"
+                    + "&requested_tos_location=" + requested_tos_location
+                    + "&requested_tos_language=en&served_tos_location=CA&served_tos_language=en&submitbutton=I+accept.+Create+my+account.";
 
                     std::cout << m1->content << std::endl;
 
@@ -319,26 +325,7 @@ namespace youtube
             });
         }
 
-        private: struct variables
-        {
-            variables(nextgen::network::service network_service) : network_service(network_service), client(network_service)
-            {
-
-            }
-
-            ~variables()
-            {
-
-            }
-
-            nextgen::network::service network_service;
-            nextgen::network::http_client client;
-
-            proxos::proxy proxy;
-            proxos::agent agent;
-        };
-
-        NEXTGEN_SHARED_DATA(client, variables);
+        NEXTGEN_ATTACH_SHARED_VARIABLES(client, client_variables>);
     };
 }
 

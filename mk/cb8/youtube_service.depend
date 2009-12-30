@@ -1,8 +1,8 @@
 # depslib dependency file v1.0
-1262167594 source:/home/daemn/projects/proxos/src/youtube_service.cpp
+1262175075 source:/home/daemn/projects/proxos/src/youtube_service.cpp
 	"youtube_video.h"
 
-1262169498 /home/daemn/projects/proxos/src/youtube_video.h
+1262179444 /home/daemn/projects/proxos/src/youtube_video.h
 	"nextgen/common.h"
 	"nextgen/network.h"
 	"nextgen/database.h"
@@ -93,7 +93,7 @@
 	"nextgen/database.h"
 	"nextgen/social.h"
 
-1262169916 /home/daemn/projects/proxos/src/nextgen/common.h
+1262174761 /home/daemn/projects/proxos/src/nextgen/common.h
 	<cstddef>
 	<cstdio>
 	<cmath>
@@ -172,12 +172,12 @@
 1261994202 /home/daemn/projects/proxos/src/nextgen/content_gzip.h
 	<zlib.h>
 
-1262169930 /home/daemn/projects/proxos/src/nextgen/network.h
+1262177816 /home/daemn/projects/proxos/src/nextgen/network.h
 	"common.h"
 
 1262169464 /home/daemn/projects/proxos/src/nextgen/database.h
 	"common.h"
 
-1262167552 /home/daemn/projects/proxos/src/nextgen/social.h
+1262174960 /home/daemn/projects/proxos/src/nextgen/social.h
 	"common.h"
 

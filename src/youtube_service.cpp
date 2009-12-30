@@ -62,46 +62,51 @@ void application::run(int argc, char* argv[])
 
     self->social_service->person_list_empty_event += [=]()
     {
-        nextgen::social::person person;
-
         std::string query("SELECT * FROM people WHERE people.person_id NOT IN (SELECT accounts.person_id FROM accounts)");
 
         if(YOUTUBE_DEBUG_1)
             std::cout << query << std::endl;
 
-        auto r1 = *self->main_database.get_row(query);
+        auto person_list = *self->main_database.get_row_list(query);
 
-        person->id = to_int(r1["person_id"]);
-        person->country->id = to_int(r1["country_id"]);
-        person->gender->id = to_int(r1["gender_id"]);
-        person->postal_code = r1["person_postal_code"];
-        person->birthday = boost::gregorian::from_simple_string(r1["person_birthday"].substr(0, 10));
-
+        std::for_each(person_list.begin(), person_list.end(), [=](nextgen::database::row& row)
         {
-            auto r2 = *self->main_database.get_row("SELECT name_title, name_id FROM names WHERE name_id = " + r1["name_id_first"] + " LIMIT 1");
+            auto r1 = *row;
 
-            person->name->first = r1["name_title"];
-        }
+            nextgen::social::person person;
 
-        {
-            auto r2 = *self->main_database.get_row("SELECT name_title, name_id FROM names WHERE name_id = " + r1["name_id_last"] + " LIMIT 1");
+            person->id = to_int(r1["person_id"]);
+            person->country->id = to_int(r1["country_id"]);
+            person->gender->id = to_int(r1["gender_id"]);
+            person->postal_code = r1["person_postal_code"];
+            person->birthday = boost::gregorian::from_simple_string(r1["person_birthday"].substr(0, 10));
 
-            person->name->last = r1["name_title"];
-        }
+            {
+                auto r2 = *self->main_database.get_row("SELECT name_title, name_id FROM names WHERE name_id = " + r1["name_id_first"] + " LIMIT 1");
 
-        {
-            auto r2 = *self->main_database.get_row("SELECT country_code FROM countries WHERE country_id = " + to_string(person->country->id) + " LIMIT 1");
+                person->name->first = r2["name_title"];
+            }
 
-            person->country->code = r1["country_code"];
-        }
+            {
+                auto r2 = *self->main_database.get_row("SELECT name_title, name_id FROM names WHERE name_id = " + r1["name_id_last"] + " LIMIT 1");
 
-        {
-            auto r2 = *self->main_database.get_row("SELECT gender_code FROM genders WHERE gender_id = " + to_string(person->gender->id) + " LIMIT 1");
+                person->name->last = r2["name_title"];
+            }
 
-            person->gender->code = r1["gender_code"];
-        }
+            {
+                auto r2 = *self->main_database.get_row("SELECT country_code FROM countries WHERE country_id = " + to_string(person->country->id) + " LIMIT 1");
 
-        self->social_service.add_person(person);
+                person->country->code = r2["country_code"];
+            }
+
+            {
+                auto r2 = *self->main_database.get_row("SELECT gender_code FROM genders WHERE gender_id = " + to_string(person->gender->id) + " LIMIT 1");
+
+                person->gender->code = r2["gender_code"];
+            }
+
+            self->social_service.add_person(person);
+        });
     };
 
     self->social_service->person_list_empty_event();
@@ -122,24 +127,26 @@ void application::run(int argc, char* argv[])
 
             auto agent_list = *self->proxy_database.get_row_list(q1);
 
-            std::string query("SELECT proxy_host, proxy_port, type_id FROM proxies WHERE state_id = 8 AND proxy_port != 3124 AND proxy_port != 3127 LIMIT 1");//state_id = 8 ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC LIMIT 1,1");
+            std::string q2("SELECT proxy_host, proxy_port, type_id FROM proxies WHERE state_id = 8 AND proxy_port != 3124 AND proxy_port != 3127 LIMIT 1");//state_id = 8 ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC LIMIT 1,1");
 
             if(YOUTUBE_DEBUG_1)
-                std::cout << query << std::endl;
+                std::cout << q2 << std::endl;
 
-            auto proxy_list = *self->proxy_database.get_row_list(query);
+            auto proxy_list = *self->proxy_database.get_row_list(q2);
 
             std::for_each(proxy_list.begin(), proxy_list.end(), [=](nextgen::database::row& row)
             {
+                auto r1 = *row;
+
                 if(YOUTUBE_DEBUG_1)
-                    std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << std::endl;
+                    std::cout << r1["proxy_host"] << " " << r1["proxy_port"] << std::endl;
 
-                proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]));
-                proxy->type = to_int((*row)["type_id"]);
+                proxos::proxy proxy(r1["proxy_host"], to_int(r1["proxy_port"]));
+                proxy->type = to_int(r1["type_id"]);
 
-                auto row2 = agent_list[nextgen::random(0, (int)agent_list.size()-1)];
+                auto r2 = *agent_list[nextgen::random(0, (int)agent_list.size()-1)];
 
-                proxos::agent agent((*row2)["agent_title"]);
+                proxos::agent agent(r2["agent_title"]);
 
                 youtube::client c1(self->network_service);
                 c1->proxy = proxy;
@@ -153,32 +160,47 @@ void application::run(int argc, char* argv[])
             youtube::client c1(self->network_service);
 
             youtube::account a1;
-            a1->user->username = "abcd";
-            a1->user->password = "dcba";
-            a1->user->email = nextgen::social::email(self->mail_server);
-            a1->user->email->user = "abcd";
-            a1->user->email->host = "blah.com";
 
-            c1.create_account(a1,
-            [=]()
+            a1->person = self->social_service.get_random_person();
+            a1->user = nextgen::social::user();
+
+            auto id = nextgen::random(100, 10000);
+
+            switch(nextgen::random(1, 5))
             {
-                std::string q1("SELECT * FROM accounts WHERE accounts.person_id = " + to_string(a1->person->id) + " LIMIT 1");
+                case 1: a1->user->username = a1->person->name->first + to_string(id); break;
+                case 2: a1->user->username = a1->person->name->last + to_string(id); break;
+                case 3: a1->user->username = a1->person->name->first + to_string(id); break;
+                case 4: a1->user->username = a1->person->name->first + "_" + to_string(id) + "x"; break;
+                case 5: a1->user->username = a1->person->name->first + "_" + to_string(id); break;
+                // nicknames
+            }
 
-                std::cout << "Executing SQL: " << q1 << std::endl;
+            a1->user->password = reverse_string(a1->user->username);
+            a1->user->email = nextgen::social::email(self->mail_server);
+            a1->user->email->user = a1->user->username;
+            a1->user->email->host = "69labs.com";//social.0-x.pl";
 
-                nextgen::database::row_list row_list = self->main_database.get_row_list(q1);
+            std::string q1("SELECT * FROM accounts WHERE accounts.person_id = " + to_string(a1->person->id) + " LIMIT 1");
 
-                if(row_list->size() == 0)
+            std::cout << "Executing SQL: " << q1 << std::endl;
+
+            nextgen::database::row_list row_list = self->main_database.get_row_list(q1);
+
+            std::cout << a1->user->email.to_string() << std::endl;
+
+            if(row_list->size() == 0)
+            {
+                c1.create_account(a1,
+                [=]()
                 {
                     std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->user->username + "\", account_email = \"" + a1->user->email.to_string() + "\", account_password = \"" + a1->user->password + "\", person_id = " + to_string(a1->person->id));
 
                     std::cout << "Executing SQL: " << q2 << std::endl;
 
                     self->main_database.query(q2);
-
-                    ///
-                }
-            });
+                });
+            }
         }
     }
 
