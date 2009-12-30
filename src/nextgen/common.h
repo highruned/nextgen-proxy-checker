@@ -72,7 +72,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/finder.hpp>
-
+#include <boost/date_time/gregorian/parsers.hpp>
 
 #include "content_gzip.h"
 #include "mysql/mysql.h"
@@ -284,23 +284,12 @@ std::string reverse_string(std::string const& s)
 
 namespace nextgen
 {
-    typedef std::size_t size_t;
-    typedef std::string string;
-    typedef std::vector<string> string_list;
-    typedef std::wstring wstring;
-    typedef std::ostream ostream;
-    typedef std::istream istream;
     typedef std::runtime_error error;
 
-	typedef boost::int8_t int8_t;
-    typedef boost::int32_t int16_t;
-    typedef boost::int32_t int32_t;
-    typedef boost::int32_t int32_t;
-    typedef boost::uint8_t uint8_t;
     typedef boost::uint8_t byte; //typedef unsigned char byte;
-    typedef boost::uint16_t uint16_t;
-    typedef boost::uint32_t uint32_t;
-    typedef boost::uint64_t uint64_t;
+
+    std::string const null_str = "null_t";
+    int const null_num = 0;
 
     class null_t
     {
@@ -318,46 +307,16 @@ namespace nextgen
     template<>
     null_t::operator std::string() const
     {
-        return "null_t";
+        return null_str;
     }
 
     template<>
     bool null_t::operator ==(std::string& s) const
     {
-        return s == "null_t";
+        return s == null_str;
     }
 
     null_t null;
-
-    template<typename A, typename B>
-    class hash_map : public boost::unordered_map<A, B> {};
-
-    template<typename A>
-    class deque : public std::deque<A> {};
-
-    template<typename A>
-    class list : public std::list<A> {};
-
-    template<typename A>
-    class array : public std::vector<A> {};
-
-    template<typename A, typename B>
-    class tuple : public boost::tuple<A, B> {};
-
-    template<typename T>
-    class reference : public boost::reference_wrapper<T> {};
-
-    template<typename T, typename A>
-    inline T any_cast(A a)
-    {
-        return boost::any_cast<T>(a);
-    }
-
-    template<typename T, typename A>
-    inline T cast(A a)
-    {
-        return boost::lexical_cast<T>(a);
-    }
 
     void getline(std::string& source, std::string& destination)
     {
@@ -388,7 +347,6 @@ namespace nextgen
 
         return output;
     }
-
 
     #if NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_WINDOWS
         typedef HANDLE handle;
@@ -505,7 +463,7 @@ namespace nextgen
 
             std::string all("");
 
-            return string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+            return std::string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
         }
 
         public: void write_all(std::string const& all)
@@ -617,7 +575,7 @@ namespace nextgen
 
 
     template<>
-    inline void byte_array::write(string& input)
+    inline void byte_array::write(std::string& input)
     {
         auto self = *this;
 
@@ -711,10 +669,6 @@ namespace nextgen
 		{
 			this->list.remove(t);
 		}
-
-		/**
-		* Operators
-		*/
 
 		public: bool operator!()
 		{
@@ -874,103 +828,7 @@ namespace nextgen
         });
     };
 
-    namespace network
-    {
-        typedef asio::streambuf streambuf;
-
-        class stream
-        {
-            public: typedef streambuf streambuf_type;
-
-            public: streambuf_type& get_buffer() const
-            {
-                auto self = *this;
-
-                return self->streambuf_;
-            }
-
-            private: struct variables
-            {
-                variables()
-                {
-
-                }
-
-                ~variables()
-                {
-
-                }
-
-                streambuf_type streambuf_;
-            };
-
-            NEXTGEN_SHARED_DATA(stream, variables);
-        };
-
-        class service
-        {
-            private: typedef asio::io_service service_type;
-
-            public: void update()
-            {
-                auto self = *this;
-
-                self->service.poll();
-                self->service.reset();
-            }
-
-            public: service_type& get_service()
-            {
-                auto self = *this;
-
-                return self->service;
-            }
-
-            private: struct variables
-            {
-                variables()
-                {
-
-                }
-
-                ~variables()
-                {
-
-                }
-
-                service_type service;
-            };
-
-            NEXTGEN_SHARED_DATA(service, variables);
-        };
-
-    }
-
-    void timeout(network::service network_service, std::function<void()> callback, uint32_t milliseconds)
-    {
-        if(milliseconds > 0)
-        {
-            boost::shared_ptr<asio::deadline_timer> timer(new asio::deadline_timer(network_service.get_service()));
-std::cout << "timeout for " << milliseconds << std::endl;
-            timer->expires_from_now(boost::posix_time::milliseconds(milliseconds));
-
-            timer->async_wait([=](asio::error_code const& error)
-            {
-                timer->expires_from_now(); // bugfix(daemn) it's going to go out of scope and cancel the timer automatically
-
-                if(NEXTGEN_DEBUG_4)
-                    std::cout << "timer zzz" << std::endl;
-
-                callback();
-            });
-        }
-        else
-        {
-            callback();
-        }
-    }
-
-    string regex_single_match(string const& pattern, string const& subject)
+    std::string regex_single_match(std::string const& pattern, std::string const& subject)
     {
         boost::regex_error paren(boost::regex_constants::error_paren);
 
@@ -987,7 +845,7 @@ std::cout << "timeout for " << milliseconds << std::endl;
             std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
         }
 
-        return "null";
+        return null_str;
     }
 
     void exit(std::string const& message)

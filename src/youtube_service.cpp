@@ -6,7 +6,7 @@ class application : public nextgen::singleton<application>
 {
     NEXTGEN_SHARED_CLASS(application, NEXTGEN_SHARED_CLASS_VARS(
     {
-        variables() : mail_server(network_service, 25)
+        variables() : mail_server(network_service, 25), social_service(main_database)
         {
 
         }
@@ -15,6 +15,7 @@ class application : public nextgen::singleton<application>
         nextgen::database::link main_database;
         nextgen::database::link proxy_database;
         nextgen::network::smtp_server mail_server;
+        nextgen::social::service social_service;
     }));
 
     public: void run(int, char**);
@@ -57,6 +58,53 @@ void application::run(int argc, char* argv[])
             });
         });
     });
+
+
+    self->social_service->person_list_empty_event += [=]()
+    {
+        nextgen::social::person person;
+
+        std::string query("SELECT * FROM people WHERE people.person_id NOT IN (SELECT accounts.person_id FROM accounts)");
+
+        if(YOUTUBE_DEBUG_1)
+            std::cout << query << std::endl;
+
+        auto r1 = *self->main_database.get_row(query);
+
+        person->id = to_int(r1["person_id"]);
+        person->country->id = to_int(r1["country_id"]);
+        person->gender->id = to_int(r1["gender_id"]);
+        person->postal_code = r1["person_postal_code"];
+        person->birthday = boost::gregorian::from_simple_string(r1["person_birthday"].substr(0, 10));
+
+        {
+            auto r2 = *self->main_database.get_row("SELECT name_title, name_id FROM names WHERE name_id = " + r1["name_id_first"] + " LIMIT 1");
+
+            person->name->first = r1["name_title"];
+        }
+
+        {
+            auto r2 = *self->main_database.get_row("SELECT name_title, name_id FROM names WHERE name_id = " + r1["name_id_last"] + " LIMIT 1");
+
+            person->name->last = r1["name_title"];
+        }
+
+        {
+            auto r2 = *self->main_database.get_row("SELECT country_code FROM countries WHERE country_id = " + to_string(person->country->id) + " LIMIT 1");
+
+            person->country->code = r1["country_code"];
+        }
+
+        {
+            auto r2 = *self->main_database.get_row("SELECT gender_code FROM genders WHERE gender_id = " + to_string(person->gender->id) + " LIMIT 1");
+
+            person->gender->code = r1["gender_code"];
+        }
+
+        self->social_service.add_person(person);
+    };
+
+    self->social_service->person_list_empty_event();
 
     if(argc > 1)
     {
@@ -105,11 +153,11 @@ void application::run(int argc, char* argv[])
             youtube::client c1(self->network_service);
 
             youtube::account a1;
-            a1->username = "abcd";
-            a1->password = "dcba";
-            a1->email = nextgen::social::email(self->mail_server);
-            a1->email->user = "abcd";
-            a1->email->host = "blah.com";
+            a1->user->username = "abcd";
+            a1->user->password = "dcba";
+            a1->user->email = nextgen::social::email(self->mail_server);
+            a1->user->email->user = "abcd";
+            a1->user->email->host = "blah.com";
 
             c1.create_account(a1,
             [=]()
@@ -122,7 +170,7 @@ void application::run(int argc, char* argv[])
 
                 if(row_list->size() == 0)
                 {
-                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->username + "\", account_email = \"" + a1->email.to_string() + "\", account_password = \"" + a1->password + "\", person_id = " + to_string(a1->person->id));
+                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->user->username + "\", account_email = \"" + a1->user->email.to_string() + "\", account_password = \"" + a1->user->password + "\", person_id = " + to_string(a1->person->id));
 
                     std::cout << "Executing SQL: " << q2 << std::endl;
 
@@ -139,6 +187,7 @@ void application::run(int argc, char* argv[])
     while(true)
     {
         self->network_service.update();
+        self->social_service.update();
 
         nextgen::sleep(0.01);
     }

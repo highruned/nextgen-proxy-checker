@@ -235,7 +235,7 @@ namespace proxos
         public: typedef proxos::proxy proxy_type;
         public: typedef std::list<job_type> job_list_type;
         public: typedef nextgen::network::service network_service_type;
-        public: typedef nextgen::uint32_t client_max_type;
+        public: typedef uint32_t client_max_type;
         public: typedef nextgen::timer timer_type;
         public: typedef nextgen::network::http_message message_type;
         public: typedef nextgen::network::http_client client_type;
@@ -256,17 +256,17 @@ namespace proxos
             }
         }
 
-        public: job_list_type::iterator find_job(nextgen::uint32_t id) const
+        public: job_list_type::iterator find_job(uint32_t id) const
         {
             auto self = *this;
 
             return std::find_if(self->job_list.begin(), self->job_list.end(), [=](job_type& job) -> bool
             {
-                return (job->proxy.get_id() == id);
+                return id == job->proxy.get_id();
             });
         }
 
-        public: void remove_job(nextgen::uint32_t id) const
+        public: void remove_job(uint32_t id) const
         {
             auto self = *this;
 

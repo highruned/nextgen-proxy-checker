@@ -7,6 +7,91 @@ namespace nextgen
 {
     namespace network
     {
+        class stream
+        {
+            public: typedef asio::streambuf streambuf_type;
+
+            public: streambuf_type& get_buffer() const
+            {
+                auto self = *this;
+
+                return self->streambuf;
+            }
+
+            private: struct variables
+            {
+                variables()
+                {
+
+                }
+
+                streambuf_type streambuf;
+            };
+
+            NEXTGEN_SHARED_DATA(stream, variables);
+        };
+
+        class service
+        {
+            private: typedef asio::io_service service_type;
+
+            public: void update()
+            {
+                auto self = *this;
+
+                self->service.poll();
+                self->service.reset();
+            }
+
+            public: service_type& get_service()
+            {
+                auto self = *this;
+
+                return self->service;
+            }
+
+            private: struct variables
+            {
+                variables()
+                {
+
+                }
+
+                service_type service;
+            };
+
+            NEXTGEN_SHARED_DATA(service, variables);
+        };
+    }
+
+    // todo(daemn) cant make this a template - ice segfault
+    void timeout(network::service service, std::function<void()> callback, uint32_t milliseconds)
+    {
+        if(milliseconds > 0)
+        {
+            boost::shared_ptr<asio::deadline_timer> timer(new asio::deadline_timer(service.get_service()));
+std::cout << "timeout for " << milliseconds << std::endl;
+            timer->expires_from_now(boost::posix_time::milliseconds(milliseconds));
+
+            timer->async_wait([=](asio::error_code const& error)
+            {
+                timer->expires_from_now(); // bugfix(daemn) it's going to go out of scope and cancel the timer automatically
+
+                if(NEXTGEN_DEBUG_4)
+                    std::cout << "timer zzz" << std::endl;
+
+                callback();
+            });
+        }
+        else
+        {
+            callback();
+        }
+    }
+
+    namespace network
+    {
+
         namespace ip
         {
             namespace network
@@ -20,7 +105,7 @@ namespace nextgen
                 {
                     class layer : public layer_base
                     {
-                        public: typedef string host_type;
+                        public: typedef std::string host_type;
                         public: typedef uint32_t port_type;
 
                         public: virtual host_type const& get_host()
@@ -193,7 +278,7 @@ namespace nextgen
                     {
                         public: typedef layer<network_layer_type> this_type;
                         public: typedef service service_type;
-                        public: typedef string host_type;
+                        public: typedef std::string host_type;
                         public: typedef uint32_t port_type;
                         public: typedef uint32_t timeout_type;
 
@@ -673,7 +758,7 @@ namespace nextgen
                     public: typedef service service_type;
                     public: typedef message message_type;
                     public: typedef timer timer_type;
-                    public: typedef string host_type;
+                    public: typedef std::string host_type;
                     public: typedef uint32_t port_type;
 
                     public: typedef std::function<void()> base_event_type;
@@ -755,7 +840,7 @@ namespace nextgen
 
                             std::istream data_stream(&self->stream.get_buffer());
 
-                            self->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+                            self->content += std::string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
                         }
 
                         NEXTGEN_ATTACH_SHARED_BASE(basic_message, detail::message_base<variables_type>);
@@ -1060,7 +1145,7 @@ namespace nextgen
                             timer keep_alive_timer;
                             transport_layertype transport_layer;
                             keep_alive_threshold_type keep_alive_threshold;
-                            string host;
+                            std::string host;
                             uint32_t port;
                         };
 
@@ -1073,22 +1158,22 @@ namespace nextgen
                     class message_shared_base : public detail::message_shared_base
                     {
                         public:
-                        typedef string raw_header_list_type;
-                        typedef hash_map<string, string> header_list_type;
+                        typedef std::string raw_header_list_type;
+                        typedef boost::unordered_map<std::string, std::string> header_list_type;
                         typedef uint32_t status_code_type;
-                        typedef string referer_type;
-                        typedef hash_map<string, string> post_list_type;
-                        typedef string content_type;
-                        typedef string path_type;
+                        typedef std::string referer_type;
+                        typedef boost::unordered_map<std::string, std::string> post_list_type;
+                        typedef std::string content_type;
+                        typedef std::string path_type;
                         typedef uint32_t id_type;
-                        typedef string version_type;
-                        typedef string network_layer_type;
-                        typedef string host_type;
+                        typedef std::string version_type;
+                        typedef std::string network_layer_type;
+                        typedef std::string host_type;
                         typedef uint32_t port_type;
                         typedef byte_array stream_type;
-                        typedef string url_type;
-                        typedef string status_description_type;
-                        typedef string method_type;
+                        typedef std::string url_type;
+                        typedef std::string status_description_type;
+                        typedef std::string method_type;
 
                         message_shared_base() : detail::message_shared_base(), status_code(0), version("1.1")
                         {
@@ -1105,35 +1190,35 @@ namespace nextgen
                         status_description_type status_description;
                         id_type id;
                         method_type method;
-                        string path;
+                        std::string path;
                         version_type version;
                         network_layer_type address;
                         port_type port;
                         host_type host;
-                        string username;
-                        string password;
-                        string scheme;
+                        std::string username;
+                        std::string password;
+                        std::string scheme;
                     };
 
                     template<typename variables_type>
                     class basic_message : public detail::message_base<variables_type>
                     {
-                        typedef string raw_header_list_type;
-                        typedef hash_map<string, string> header_list_type;
+                        typedef std::string raw_header_list_type;
+                        typedef boost::unordered_map<std::string, std::string> header_list_type;
                         typedef uint32_t status_code_type;
-                        typedef string referer_type;
-                        typedef hash_map<string, string> post_list_type;
-                        typedef string content_type;
-                        typedef string path_type;
+                        typedef std::string referer_type;
+                        typedef boost::unordered_map<std::string, std::string> post_list_type;
+                        typedef std::string content_type;
+                        typedef std::string path_type;
                         typedef uint32_t id_type;
-                        typedef string version_type;
-                        typedef string network_layer_type;
-                        typedef string host_type;
+                        typedef std::string version_type;
+                        typedef std::string network_layer_type;
+                        typedef std::string host_type;
                         typedef uint32_t port_type;
                         typedef byte_array stream_type;
-                        typedef string url_type;
-                        typedef string status_description_type;
-                        typedef string method_type;
+                        typedef std::string url_type;
+                        typedef std::string status_description_type;
+                        typedef std::string method_type;
 
                         public: struct state_type
                         {
@@ -1206,8 +1291,8 @@ namespace nextgen
                                 }
 
                                 auto header_list = self->header_list;
-                                string raw_header_list = "";
-                                string content = self->content;
+                                std::string raw_header_list = "";
+                                std::string content = self->content;
 
                                 header_list_type::iterator i, l;
 
@@ -1312,17 +1397,17 @@ namespace nextgen
                             {
                                 std::istream data_stream(&self->stream.get_buffer());
 
-                                string line;
+                                std::string line;
                                 std::getline(data_stream, line);
 
                                 if(NEXTGEN_DEBUG_3)
                                     std::cout << "UNPACKING: " << line << std::endl;
 
-                                string data((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+                                std::string data((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
                                 size_t header_end = data.find("\r\n\r\n");
 
-                                if(header_end != string::npos)
+                                if(header_end != std::string::npos)
                                 {
                                     self->raw_header_list = data.substr(0, header_end + 4);
 
@@ -1339,8 +1424,8 @@ namespace nextgen
                                     boost::match_results<std::string::const_iterator> what;
                                     boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
 
-                                    string::const_iterator start = line.begin();
-                                    string::const_iterator end = line.end();
+                                    std::string::const_iterator start = line.begin();
+                                    std::string::const_iterator end = line.end();
 
                                     // todo(daemn) fix line bug
                                     if(boost::regex_search(start, end, what, boost::regex("^HTTP\\/(.+?) ([0-9]+) (.+?)\r"), flags))
@@ -1384,8 +1469,8 @@ namespace nextgen
                                     boost::match_results<std::string::const_iterator> what;
                                     boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
 
-                                    string::const_iterator start = self->raw_header_list.begin();
-                                    string::const_iterator end = self->raw_header_list.end();
+                                    std::string::const_iterator start = self->raw_header_list.begin();
+                                    std::string::const_iterator end = self->raw_header_list.end();
 
                                     std::cout << "raw: " << self->raw_header_list << std::endl;
 
@@ -1453,7 +1538,7 @@ namespace nextgen
 
                             std::istream data_stream(&self->stream.get_buffer());
 
-                            self->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+                            self->content += std::string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 std::cout << "encoding: " << self->header_list["content-encoding"] << std::endl;
 std::cout << "size: " << self->content.size() << std::endl;
                             if(self->header_list["content-encoding"] == "gzip"
@@ -1831,7 +1916,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                             {
                                 std::istream data_stream(&response->stream.get_buffer());
 
-                                response->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+                                response->content += std::string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
                                         std::cout << "CONTENT L BEFORE: " << response->content.size() << std::endl;
 
@@ -1961,7 +2046,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                         response->header_list["content-length"] = "0";
 
-                                        response->content += string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+                                        response->content += std::string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
                                         std::cout << "CONTENT L BEFORE: " << response->content.size() << std::endl;
 
@@ -2209,9 +2294,9 @@ std::cout << "size: " << self->content.size() << std::endl;
                             timer keep_alive_timer;
                             transport_layertype transport_layer;
                             keep_alive_threshold_type keep_alive_threshold;
-                            string proxy;
+                            std::string proxy;
                             ipv4_address proxy_address;
-                            string host;
+                            std::string host;
                             uint32_t port;
                         };
 
@@ -2236,7 +2321,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                     template<typename variables_type>
                     class basic_message : public detail::message_base<variables_type>
                     {
-                        typedef string data_type;
+                        typedef std::string data_type;
                         typedef byte_array stream_type;
 
                         public: stream_type get_stream() const
@@ -2263,7 +2348,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                             {
                                 std::istream data_stream(&self->stream.get_buffer());
 
-                                self->data = string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+                                self->data = std::string((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
                             }
 
                         }

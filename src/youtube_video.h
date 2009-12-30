@@ -16,7 +16,7 @@ namespace youtube
     {
         NEXTGEN_SHARED_CLASS(video, NEXTGEN_SHARED_CLASS_VARS(
         {
-            variables() : id("null")
+            variables() : id(nextgen::null_str)
             {
 
             }
@@ -25,11 +25,31 @@ namespace youtube
         }));
     };
 
+    class account_variables : public nextgen::social::basic_account_variables
+    {
+        public: account_variables() : nextgen::social::basic_account_variables()
+        {
+
+        }
+    };
+
+    class account : public nextgen::social::basic_account<account_variables>
+    {
+        public: struct types
+        {
+            static const uint32_t none = 0;
+            static const uint32_t google = 1;
+            static const uint32_t youtube = 2;
+        };
+
+        NEXTGEN_ATTACH_SHARED_BASE(account, nextgen::social::basic_account<account_variables>);
+    };
+/*
     class account // extends nextgen::social::account
     {
         NEXTGEN_SHARED_CLASS(account, NEXTGEN_SHARED_CLASS_VARS(
         {
-            variables() : username("null"), password("null"), email(nextgen::null), person(nextgen::null), type(0)
+            variables() : username(nextgen::null_str), password(nextgen::null_str), email(nextgen::null), person(nextgen::null), type(0)
             {
 
             }
@@ -40,7 +60,7 @@ namespace youtube
             nextgen::social::person person;
             uint32_t type;
         }));
-    };
+    };*/
 
     class client
     {
@@ -115,9 +135,9 @@ namespace youtube
                         return;
                     }
 
-                    nextgen::string token = nextgen::regex_single_match("\"t\"\\: \"(.+?)\"\\,", r1->content);
+                    std::string token = nextgen::regex_single_match("\"t\"\\: \"(.+?)\"\\,", r1->content);
 
-                    if(token == "null")
+                    if(token == nextgen::null_str)
                     {
                         std::cout << "[youtube] error: null token" << std::endl;
 
@@ -172,7 +192,6 @@ namespace youtube
 
                             return;
                         }
-
 
                         if(YOUTUBE_DEBUG_1)
                             std::cout << "[proxos::youtube] VIEWED " << view_count+1 << " TIMES" << std::endl;
@@ -237,9 +256,9 @@ namespace youtube
                     std::cin >> newaccountcaptcha;
 
                     m1->content = "dsh=" + url_encode(dsh)
-                    + "&ktl=&ktf=&Email=" + url_encode(a1->email.to_string())
-                    + "&Passwd=" + url_encode(a1->password)
-                    + "&PasswdAgain=" + url_encode(a1->password)
+                    + "&ktl=&ktf=&Email=" + url_encode(a1->user->email.to_string())
+                    + "&Passwd=" + url_encode(a1->user->password)
+                    + "&PasswdAgain=" + url_encode(a1->user->password)
                     + "&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)
                     + "&newaccounturl=" + url_encode(newaccounturl)
                     + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
@@ -255,12 +274,12 @@ namespace youtube
                     self->client.send(m1,
                     [=]
                     {
-                        a1->email.receive(
+                        a1->user->email.receive(
                         [=](std::string content)
                         {
                             std::string c = nextgen::regex_single_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
 
-                            if(c == "null")
+                            if(c == nextgen::null_str)
                             {
                                 std::cout << "[youtube] error: null c" << std::endl;
 

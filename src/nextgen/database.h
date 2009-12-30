@@ -7,7 +7,7 @@ namespace nextgen
 {
     namespace database
     {
-        typedef boost::shared_ptr<hash_map<std::string, std::string>> row;
+        typedef boost::shared_ptr<boost::unordered_map<std::string, std::string>> row;
         typedef boost::shared_ptr<std::vector<row>> row_list;
 
         class link
@@ -15,11 +15,11 @@ namespace nextgen
             public: typedef row row_type;
             public: typedef row_list row_list_type;
 
-            public: void connect(string const& host, string const& username, string const& password, string const& database = "") const
+            public: void connect(std::string const& host, std::string const& username, std::string const& password, std::string const& database = "") const
             {
                 auto self = *this;
 
-                if(self->connected != "null" && self->connected != database)
+                if(self->connected != null_str && self->connected != database)
                     self.disconnect();
 
                 self->link = mysql_init(NULL);
@@ -55,15 +55,15 @@ namespace nextgen
 
                 self->link = (MYSQL*)NULL;
 
-                self->connected = "null";
+                self->connected = null_str;
             }
 
 
-            public: void query(nextgen::string const& query) const
+            public: void query(std::string const& query) const
             {
                 auto self = *this;
 
-                if(self->connected == "null")
+                if(self->connected == null_str)
                 {
                     std::cout << "<Database> Not connected." << std::endl;
 
@@ -149,13 +149,13 @@ namespace nextgen
             }
 
 
-            public: row_list_type get_row_list(string const& query) const
+            public: row_list_type get_row_list(std::string const& query) const
             {
                 auto self = *this;
 
                 row_list_type list(new row_list_type::element_type);
 
-                if(self->connected == "null")
+                if(self->connected == null_str)
                 {
                     std::cout << "<Database> Not connected." << std::endl;
 
@@ -248,13 +248,13 @@ namespace nextgen
             }
 
 
-            public: row_type get_row(string const& query) const
+            public: row_type get_row(std::string const& query) const
             {
                 auto self = *this;
 
                 row_type hash(new row_type::element_type);
 
-                if(self->connected == "null")
+                if(self->connected == null_str)
                 {
                     std::cout << "<Database> Not connected." << std::endl;
 
@@ -301,8 +301,6 @@ namespace nextgen
                         {
                            lengths = mysql_fetch_lengths(result);
 
-
-
                            for(i = 0; i < num_fields; i++)
                            {
                                if(row[i])
@@ -348,19 +346,13 @@ namespace nextgen
 
             private: struct variables
             {
-                variables() : connected("null")
+                variables() : connected(null_str)
                 {
 
                 }
-
-                ~variables()
-                {
-
-                }
-
 
                 MYSQL* link;
-                string connected;
+                std::string connected;
             };
 
             NEXTGEN_SHARED_DATA(link, variables);
