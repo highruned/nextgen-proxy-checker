@@ -10,8 +10,6 @@ bool PROXOS_DEBUG_1 = 1;
 
 namespace proxos
 {
-
-
 	class proxy
 	{
 	    public: typedef proxy this_type;
@@ -152,12 +150,7 @@ namespace proxos
                 variables((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
             }
 
-            variables(host_type const& host = "undefined.com", port_type port = 0, id_type id = 0, type_type type = 0, latency_type latency = 0) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
-            {
-
-            }
-
-            ~variables()
+            variables(host_type const& host = nextgen::null, port_type port = nextgen::null, id_type id = nextgen::null, type_type type = nextgen::null, latency_type latency = nextgen::null) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
             {
 
             }
@@ -195,11 +188,6 @@ namespace proxos
                 {
                     if(callback == 0)
                         callback = []() { std::cout << "No callback." << std::endl; };
-                }
-
-                ~variables()
-                {
-
                 }
 
                 bool complete;
@@ -343,7 +331,7 @@ namespace proxos
                             r2->content = "my_data";
 
                             client.send(r2,
-                            [=]()
+                            [=]
                             {
                                 client.disconnect();
                             });
@@ -693,8 +681,6 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     // notify listeners we could use more jobs
                     if(self->job_list.size() < self->client_max)
                     {
-                        size_t before = self->job_list.size();
-
                         size_t amount = self->client_max - self->job_list.size();
 
                         if(amount > 0)
@@ -733,11 +719,6 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
         private: struct variables
         {
             variables(std::string const& host, uint32_t port, network_service_type network_service) : enabled(false), active_clients(0), host(host), port(port), network_service(network_service), server(network_service, port), client_max(850)
-            {
-
-            }
-
-            ~variables()
             {
 
             }

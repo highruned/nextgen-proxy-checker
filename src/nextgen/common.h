@@ -116,7 +116,7 @@
     protected: boost::shared_ptr<data_type_arg> ng_data; \
     public: this_type_arg(this_type_arg& t) : ng_data(t.ng_data) { } \
     public: this_type_arg(this_type_arg const& t) : ng_data(t.ng_data) { } \
-    public: this_type_arg(nextgen::null_t& t) { } \
+    public: this_type_arg(nextgen::null_t& t) { __VA_ARGS__ } \
     public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : ng_data(new data_type_arg(argument_list...)) { __VA_ARGS__ } \
     public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : ng_data(t.ng_data) { } \
     public: bool operator==(this_type_arg const& t) const { return &(*this->ng_data) == &(*t.ng_data); } \
@@ -284,8 +284,6 @@ std::string reverse_string(std::string const& s)
 
 namespace nextgen
 {
-    typedef std::runtime_error error;
-
     typedef boost::uint8_t byte; //typedef unsigned char byte;
 
     std::string const null_str = "null_t";
@@ -525,11 +523,6 @@ namespace nextgen
                 std::ostream ostream(&this->data);
 
                 ostream << &ba->data;
-            }
-
-            ~variables()
-            {
-
             }
 
             bool little_endian;

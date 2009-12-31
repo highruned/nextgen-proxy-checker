@@ -146,7 +146,7 @@ void application::run(int argc, char* argv[])
 
                 auto r2 = *agent_list[nextgen::random(0, (int)agent_list.size()-1)];
 
-                proxos::agent agent(r2["agent_title"]);
+                nextgen::network::http_agent agent(r2["agent_title"]);
 
                 youtube::client c1(self->network_service);
                 c1->proxy = proxy;

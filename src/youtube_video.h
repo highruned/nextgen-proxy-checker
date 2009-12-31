@@ -59,7 +59,7 @@ namespace youtube
         nextgen::network::http_client client;
 
         proxos::proxy proxy;
-        proxos::agent agent;
+        nextgen::network::http_agent agent;
     };
 
     class client
@@ -67,8 +67,6 @@ namespace youtube
         public: void view_video(video v1, size_t view_max) const
         {
             auto self = *this;
-
-            size_t view_count = 0;
 
             if(self->agent == 0)
                 self->agent = nextgen::network::http_agent("Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5");
@@ -163,13 +161,13 @@ namespace youtube
                     {
                         self->client.reconnect([=]()
                         {
-                            self.video_download_detail(m3, view_count, view_max);
+                            self.video_download_detail(m3, 0, view_max);
                         });
 
                         return;
                     }
 
-                    self.video_download_detail(m3, view_count, view_max);
+                    self.video_download_detail(m3, 0, view_max);
                 });
             });
         }
@@ -325,7 +323,7 @@ namespace youtube
             });
         }
 
-        NEXTGEN_ATTACH_SHARED_VARIABLES(client, client_variables>);
+        NEXTGEN_ATTACH_SHARED_VARIABLES(client, client_variables);
     };
 }
 
