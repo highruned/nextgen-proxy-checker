@@ -8,9 +8,9 @@ namespace nextgen
 {
     namespace social
     {
-        class basic_country_variables
+        struct basic_country_variables
         {
-            public: basic_country_variables() : code("null"), id(0)
+           basic_country_variables() : code("null"), id(0)
             {
 
             }
@@ -24,9 +24,9 @@ namespace nextgen
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_country, basic_country_variables);
         };
 
-        class basic_gender_variables
+        struct basic_gender_variables
         {
-            public: basic_gender_variables() : code("null"), id(0)
+            basic_gender_variables() : code("null"), id(0)
             {
 
             }
@@ -40,9 +40,9 @@ namespace nextgen
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_gender, basic_gender_variables);
         };
 
-        class basic_name_variables
+        struct basic_name_variables
         {
-            public: basic_name_variables() : first("null"), middle("null"), last("null")
+            basic_name_variables() : first("null"), middle("null"), last("null")
             {
 
             }
@@ -57,9 +57,9 @@ namespace nextgen
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_name, basic_name_variables);
         };
 
-        class basic_email_variables
+        struct basic_email_variables
         {
-            public: basic_email_variables(nextgen::network::smtp_server server) : server(server), user("null"), host("null")
+            basic_email_variables(nextgen::network::smtp_server server) : server(server), user("null"), host("null")
             {
 
             }
@@ -90,9 +90,9 @@ namespace nextgen
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_email, basic_email_variables);
         };
 
-        class basic_person_variables
+        struct basic_person_variables
         {
-            public: basic_person_variables() : id(0), postal_code("null")
+            basic_person_variables() : id(0), postal_code("null")
             {
 
             }
@@ -110,9 +110,9 @@ namespace nextgen
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_person, basic_person_variables);
         };
 
-        class basic_user_variables
+        struct basic_user_variables
         {
-            public: basic_user_variables() : username("null"), password("null"), email(null)
+            basic_user_variables() : username("null"), password("null"), email(null)
             {
 
             }
@@ -127,9 +127,9 @@ namespace nextgen
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_user, basic_user_variables);
         };
 
-        class basic_account_variables
+        struct basic_account_variables
         {
-            public: basic_account_variables() : id(0), type(0), user(null), person(null)
+            basic_account_variables() : id(0), type(0), user(null), person(null)
             {
 
             }
@@ -153,9 +153,9 @@ namespace nextgen
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_account, variables_type);
         };
 
-        class basic_service_variables
+        struct basic_service_variables
         {
-            public: basic_service_variables(database::link main_database) : main_database(main_database)
+            basic_service_variables(database::link main_database) : main_database(main_database)
             {
 
             }

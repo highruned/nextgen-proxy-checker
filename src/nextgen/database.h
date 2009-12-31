@@ -355,7 +355,7 @@ namespace nextgen
                 std::string connected;
             };
 
-            NEXTGEN_SHARED_DATA(link, variables);
+            NEXTGEN_ATTACH_SHARED_VARIABLES(link, variables);
         };
     }
 }

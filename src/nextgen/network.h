@@ -914,7 +914,6 @@ namespace nextgen
                     public: typedef TransportLayerType transport_layer_type;
                     public: typedef layer_base<transport_layer_type, message_type, variables_type> this_type;
 
-
                     public: typedef std::function<void()> base_event_type;
                     public: typedef base_event_type connect_successful_event_type;
                     public: typedef base_event_type connect_failure_event_type;
@@ -1715,7 +1714,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: typedef typename base_type::port_type port_type;
                         public: typedef typename base_type::keep_alive_threshold_type keep_alive_threshold_type;
 
-
                         public: void reconnect(connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
@@ -1794,7 +1792,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         std::cout << r1.to_string() << std::endl;
 
                                     self->transport_layer.send(r1,
-                                    [=]()
+                                    [=]
                                     {
                                         if(NEXTGEN_DEBUG_4)
                                             std::cout << "sent socks4 request" << std::endl;
@@ -1802,7 +1800,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         byte_array r2;
 
                                         self->transport_layer.receive(asio::transfer_at_least(8), r2,
-                                        [=]()
+                                        [=]
                                         {
                                             if(NEXTGEN_DEBUG_4)
                                                 std::cout << "received socks4 response" << std::endl;
@@ -1852,7 +1850,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         std::cout << r1.to_string() << std::endl;
 
                                     self->transport_layer.send(r1,
-                                    [=]()
+                                    [=]
                                     {
                                         if(NEXTGEN_DEBUG_4)
                                             std::cout << "sent socks5 request" << std::endl;
@@ -1860,7 +1858,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         byte_array r2;
 
                                         self->transport_layer.receive(asio::transfer_at_least(2), r2,
-                                        [=]()
+                                        [=]
                                         {
                                             if(NEXTGEN_DEBUG_4)
                                                 std::cout << "received socks5 response" << std::endl;
@@ -1943,7 +1941,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                             std::cout << "receive_chunked_data" << std::endl;
 
                             self->transport_layer.receive(asio::transfer_at_least(length), response->stream,
-                            [=]()
+                            [=]
                             {
                                 std::istream data_stream(&response->stream.get_buffer());
 
@@ -1954,7 +1952,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         //std::cout << "CONTENT BEFORE: " <<  to_hex(response->content) << std::endl;
 
                                 //int l = static_cast<int>(strtol(length, NULL, 16));
-
 
                                 uint32_t length;
                                 size_t pos;
@@ -2013,7 +2010,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         }
 
                                         std::cout << "CHUNK: " << to_int(response->header_list["content-length"]) << " / " << response->content.size() << std::endl;
-
 
                                         if(length == 0)
                                         {
@@ -2098,7 +2094,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                                     successful_handler(response);
                                                 },
-                                                [=]()
+                                                [=]
                                                 {
                                                     if(NEXTGEN_DEBUG_5)
                                                         std::cout << "failed to receive rest of chunked encoding" << std::endl;
@@ -2184,13 +2180,13 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                 std::cout << "trying to receive length = " << content_length << std::endl;
 
                                             self->transport_layer.receive(asio::transfer_at_least(content_length), response->stream,
-                                            [=]()
+                                            [=]
                                             {
                                                 response.unpack_content();
 
                                                 successful_handler(response);
                                             },
-                                            [=]()
+                                            [=]
                                             {
                                                 if(NEXTGEN_DEBUG_5)
                                                     std::cout << "failed to receive rest of length but still gonna success" << std::endl;
@@ -2218,13 +2214,13 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                 std::cout << "No http content-length specified so assuming its auto EOF" << std::endl;
 
                                             self->transport_layer.receive(asio::transfer_at_least(1), response->stream,
-                                            [=]()
+                                            [=]
                                             {
                                                 response.unpack_content();
 
                                                 successful_handler(response);
                                             },
-                                            [=]()
+                                            [=]
                                             {
                                                 if(NEXTGEN_DEBUG_5)
                                                     std::cout << "failed to receive after no content-length" << std::endl;
@@ -2403,7 +2399,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: typedef typename base_type::port_type port_type;
                         public: typedef typename base_type::keep_alive_threshold_type keep_alive_threshold_type;
 
-
                         NEXTGEN_ATTACH_SHARED_BASE(basic_layer, base_type);
                     };
                 }
@@ -2423,6 +2418,7 @@ std::cout << "size: " << self->content.size() << std::endl;
         typedef ip::application::ngp::basic_message<> ngp_message;
         typedef ip::application::ngp::basic_layer<tcp_socket> ngp_client;
 
+
         template<typename layer>
         class server_base
         {
@@ -2434,10 +2430,11 @@ std::cout << "size: " << self->content.size() << std::endl;
             public: typedef base_event_type accept_failure_event_type;
         };
 
-        template<typename layer_type>
-        class server : public server_base<layer_type> // todo(daemn) inheriting doesnt seem to be working
+        template<typename LayerType>
+        class basic_server : public server_base<LayerType> // todo(daemn) inheriting doesnt seem to be working
         {
             public: typedef basic_service<> service_type;
+            public: typedef LayerType layer_type;
             public: typedef layer_type server_type;
             public: typedef layer_type client_type;
             public: typedef std::list<client_type> client_list_type;
@@ -2463,7 +2460,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                 if(failure_handler == 0)
                     failure_handler = self->accept_failure_event;
 
-                self->server_.accept(self->port,
+                self->server.accept(self->port,
                 [=](client_type client)
                 {
                     auto self3 = self; // bugfix(daemn) wow..... no stack
@@ -2551,7 +2548,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
             private: struct variables
             {
-                variables(service_type service_, port_type port) : service_(service_), server_(service_), port(port)
+                variables(service_type service, port_type port) : service(service), server(service), port(port)
                 {
 
                 }
@@ -2559,28 +2556,28 @@ std::cout << "size: " << self->content.size() << std::endl;
                 event<accept_failure_event_type> accept_failure_event;
                 event<accept_successful_event_type> accept_successful_event;
 
-                service_type service_;
-                server_type server_;
+                service_type service;
+                server_type server;
                 port_type port;
                 client_list_type client_list;
                 boost::unordered_map<std::string, nextgen::event<std::function<void(std::string)>>> handler_list;
             };
 
-            NEXTGEN_SHARED_DATA(server, variables);
+            NEXTGEN_ATTACH_SHARED_VARIABLES(basic_server, variables);
         };
 
-        typedef server<http_client> http_server;
-        typedef server<smtp_client> smtp_server;
-        typedef server<xml_client> xml_server;
-        typedef server<ngp_client> ngp_server;
+        typedef basic_server<http_client> http_server;
+        typedef basic_server<smtp_client> smtp_server;
+        typedef basic_server<xml_client> xml_server;
+        typedef basic_server<ngp_client> ngp_server;
 
         template<typename layer_type>
-        void create_server(basic_service<> service_, uint32_t port, std::function<void(layer_type)> successful_handler = 0, std::function<void()> failure_handler = 0)
+        void create_server(basic_service<> service, uint32_t port, std::function<void(layer_type)> successful_handler = 0, std::function<void()> failure_handler = 0)
         {
             if(NEXTGEN_DEBUG_2)
                 std::cout << "[nextgen:network:server:accept] Waiting for client..." << std::endl;
 
-            layer_type server(service_);
+            layer_type server(service);
 
             server.accept(port,
             [=](layer_type client)
@@ -2601,7 +2598,7 @@ std::cout << "size: " << self->content.size() << std::endl;
             });
         }
 
-        typedef network::basic_service<> service;
+        typedef basic_service<> service;
     }
 
     // todo(daemn) cant make this a template - ice segfault

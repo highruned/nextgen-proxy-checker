@@ -4,7 +4,7 @@
 
 class application : public nextgen::singleton<application>
 {
-    NEXTGEN_SHARED_CLASS(application, NEXTGEN_SHARED_CLASS_VARS(
+    struct variables
     {
         variables() : mail_server(network_service, 25), social_service(main_database)
         {
@@ -16,11 +16,12 @@ class application : public nextgen::singleton<application>
         nextgen::database::link proxy_database;
         nextgen::network::smtp_server mail_server;
         nextgen::social::service social_service;
-    }));
+    };
+
+    NEXTGEN_ATTACH_SHARED_VARIABLES(application, variables);
 
     public: void run(int, char**);
 };
-
 
 void application::run(int argc, char* argv[])
 {
@@ -58,7 +59,6 @@ void application::run(int argc, char* argv[])
             });
         });
     });
-
 
     self->social_service->person_list_empty_event += [=]()
     {
@@ -192,7 +192,7 @@ void application::run(int argc, char* argv[])
             if(row_list->size() == 0)
             {
                 c1.create_account(a1,
-                [=]()
+                [=]
                 {
                     std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->user->username + "\", account_email = \"" + a1->user->email.to_string() + "\", account_password = \"" + a1->user->password + "\", person_id = " + to_string(a1->person->id));
 

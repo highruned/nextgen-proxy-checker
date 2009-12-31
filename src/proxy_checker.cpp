@@ -157,7 +157,7 @@ class application : public nextgen::singleton<application>
             return;
         }
 
-        self->proxy_checker.check_proxy(proxy, [=]()
+        self->proxy_checker.check_proxy(proxy, [=]
         {
             if(proxy->type == proxos::proxy::types::none)
             {
@@ -239,7 +239,7 @@ class application : public nextgen::singleton<application>
         std::vector<address_range> banlist;
     };
 
-    NEXTGEN_SHARED_DATA(application, variables);
+    NEXTGEN_ATTACH_SHARED_VARIABLES(application, variables);
 };
 
 
@@ -289,11 +289,14 @@ void application::run(int argc, char* argv[])
 
         std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
         {
-            std::cout << (*row)["proxy_host"] << " " << (*row)["proxy_port"] << " " << (*row)["proxy_rating"] << std::endl;
-            proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
-            proxy->rating = to_int((*row)["proxy_rating"]);
-            proxy->state = to_int((*row)["state_id"]);
-            proxy->type = to_int((*row)["type_id"]);
+            auto r1 = *row;
+
+            std::cout << r1["proxy_host"] << " " << r1["proxy_port"] << " " << r1["proxy_rating"] << std::endl;
+
+            proxos::proxy proxy(r1["proxy_host"], to_int(r1["proxy_port"]), to_int(r1["proxy_id"]));
+            proxy->rating = to_int(r1["proxy_rating"]);
+            proxy->state = to_int(r1["state_id"]);
+            proxy->type = to_int(r1["type_id"]);
 
             // check the proxy against banlist
             self.check_proxy(proxy);
@@ -329,12 +332,12 @@ void application::run(int argc, char* argv[])
 
             std::cout << query << std::endl;
 
-            auto row = self->proxy_database.get_row(query);
+            auto r1 = *self->proxy_database.get_row(query);
 
-            proxos::proxy proxy((*row)["proxy_host"], to_int((*row)["proxy_port"]));
-            proxy->rating = to_int((*row)["proxy_rating"]);
-            proxy->state = to_int((*row)["state_id"]);
-            proxy->type = to_int((*row)["type_id"]);
+            proxos::proxy proxy(r1["proxy_host"], to_int(r1["proxy_port"]));
+            proxy->rating = to_int(r1["proxy_rating"]);
+            proxy->state = to_int(r1["state_id"]);
+            proxy->type = to_int(r1["type_id"]);
 
             self.check_proxy(proxy);
         }
@@ -358,7 +361,6 @@ void application::run(int argc, char* argv[])
         }
 
         self->proxy_checker.update();
-
         self->network_service.update();
 
         nextgen::sleep(0.05);

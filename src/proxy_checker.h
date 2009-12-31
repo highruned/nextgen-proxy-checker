@@ -90,7 +90,6 @@ namespace proxos
 			self->id = id;
 		}
 
-
 		public: latency_type get_latency() const
 		{
 		    auto self = *this;
@@ -133,21 +132,24 @@ namespace proxos
             self->state = state;
 		}
 
-
 		public: void from_row(nextgen::database::row& row) const
 		{
 		    auto self = *this;
 
-			self->host = (*row)["proxy_host"];
-			self->port = to_int((*row)["proxy_port"]);
-			self->id = to_int((*row)["proxy_id"]);
+		    auto r1 = *row;
+
+			self->host = r1["proxy_host"];
+			self->port = to_int(r1["proxy_port"]);
+			self->id = to_int(r1["proxy_id"]);
 		}
 
         private: struct variables
         {
             variables(nextgen::database::row& row)
             {
-                variables((*row)["proxy_host"], to_int((*row)["proxy_port"]), to_int((*row)["proxy_id"]));
+                auto r1 = *row;
+
+                variables(r1["proxy_host"], to_int(r1["proxy_port"]), to_int(r1["proxy_id"]));
             }
 
             variables(host_type const& host = nextgen::null, port_type port = nextgen::null, id_type id = nextgen::null, type_type type = nextgen::null, latency_type latency = nextgen::null) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
@@ -166,13 +168,9 @@ namespace proxos
             uint32_t check_delay;
         };
 
-        NEXTGEN_SHARED_DATA(proxy, variables);
+        NEXTGEN_ATTACH_SHARED_VARIABLES(proxy, variables);
 	};
 
-}
-
-namespace proxos
-{
     class proxy_checker
     {
         class job_type
@@ -187,7 +185,7 @@ namespace proxos
                 variables(proxy_type proxy, network_service_type network_service, callback_type callback = 0) : complete(false), proxy(proxy), client(network_service), callback(callback)
                 {
                     if(callback == 0)
-                        callback = []() { std::cout << "No callback." << std::endl; };
+                        callback = [] { std::cout << "No callback." << std::endl; };
                 }
 
                 bool complete;
@@ -196,7 +194,7 @@ namespace proxos
                 callback_type callback;
             };
 
-            NEXTGEN_SHARED_DATA(job_type, variables);
+            NEXTGEN_ATTACH_SHARED_VARIABLES(job_type, variables);
         };
 
         public: typedef proxos::proxy proxy_type;
@@ -297,7 +295,7 @@ namespace proxos
                                 std::cout << "[proxos:proxy_server] Server sending response to " << proxy.get_host() << ":" << proxy.get_port() << std::endl;
 
                             client.send(r2,
-                            [=]()
+                            [=]
                             {
                                 if(PROXOS_DEBUG_1)
                                     std::cout << "[proxos:proxy_server] Server response successful to " << proxy.get_host() << proxy.get_port() << std::endl;
@@ -307,7 +305,7 @@ namespace proxos
 
                                 client.disconnect();
                             },
-                            [=]()
+                            [=]
                             {
                                 if(PROXOS_DEBUG_1)
                                     std::cout << "[proxos:proxy_server] Server response failure to " << proxy.get_host() << proxy.get_port() << std::endl;
@@ -350,12 +348,12 @@ namespace proxos
                         client.disconnect();
                     }
                 },
-                [=]()
+                [=]
                 {
                     std::cout << "[proxos:proxy_server] Failed to receive data from HTTP client." << std::endl;
                 });
             },
-            [=]()
+            [=]
             {
                 std::cout << "[proxos:proxy_server] Failed to accept HTTP client." << std::endl;
             });
@@ -373,7 +371,7 @@ namespace proxos
             nextgen::network::http_client client(self->network_service);
 
             client.connect(self->host, self->port, nextgen::network::ipv4_address(self->host, self->port),
-            [=]()
+            [=]
             {
                 if(PROXOS_DEBUG_1)
                     std::cout << "[proxos:proxy_checker] Connected to self." << std::endl;
@@ -404,12 +402,12 @@ namespace proxos
                         self->enabled = false;
                     }
                 },
-                [=]()
+                [=]
                 {
                     self->enabled = false;
                 });
             },
-            [=]()
+            [=]
             {
                 self->enabled = false;
             });
@@ -441,7 +439,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
             }
 
             client.connect(self->host, self->port, nextgen::network::ipv4_address(proxy->host, proxy->port),
-            [=]()
+            [=]
             {
                 if(PROXOS_DEBUG_1)
                     std::cout << "[proxos:proxy_client] Connected to proxy " << proxy->host + ":" + to_string(proxy->port) << "." << std::endl;
@@ -541,7 +539,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     if(callback != 0)
                         callback();
                 },
-                [=]()
+                [=]
                 {
                     if(PROXOS_DEBUG_1)
                         std::cout << "[proxos:proxy_client] Client send/receive failure." << std::endl;
@@ -628,7 +626,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     }
                 });
             },
-            [=]()
+            [=]
             {
                 proxy.set_state(proxy_type::states::cannot_connect);
 
@@ -652,7 +650,6 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                 {
                     // try to clean out old server clients
                     self->server.clean();
-
 
                     if(NEXTGEN_DEBUG_4)
                         std::cout << "[proxy_checker] Cleaning out expired jobs.";
@@ -736,7 +733,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
             nextgen::event<refill_event_type> refill_event;
         };
 
-        NEXTGEN_SHARED_DATA(proxy_checker, variables,
+        NEXTGEN_ATTACH_SHARED_VARIABLES(proxy_checker, variables,
         {
             this->initialize();
         });
