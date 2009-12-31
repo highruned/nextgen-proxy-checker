@@ -41,6 +41,7 @@
 			<Add option="-pthread" />
 			<Add option="-lz \ `/usr/local/mysql/bin/mysql_config --include --libmysqld-libs`" />
 			<Add directory="../../../src" />
+			<Add directory="../../../nextgenengine/src" />
 		</Compiler>
 		<Linker>
 			<Add option="-s" />
@@ -51,17 +52,11 @@
 			<Add library="libmysqlclient.a" />
 			<Add library="libboost_regex.a" />
 			<Add library="libboost_thread.a" />
-			<Add library="libcurl.a" />
 			<Add library="libboost_iostreams.a" />
+			<Add library="libboost_date_time.a" />
+			<Add library="libcurl.a" />
 			<Add library="libz.a" />
 		</Linker>
-		<Unit filename="../../src/nextgen/common.h" />
-		<Unit filename="../../src/nextgen/content.h" />
-		<Unit filename="../../src/nextgen/content_gzip.h" />
-		<Unit filename="../../src/nextgen/database.h" />
-		<Unit filename="../../src/nextgen/math.h" />
-		<Unit filename="../../src/nextgen/network.h" />
-		<Unit filename="../../src/nextgen/social.h" />
 		<Unit filename="../../src/proxy_checker.h" />
 		<Unit filename="../../src/youtube_service.cpp" />
 		<Unit filename="../../src/youtube_video.h" />

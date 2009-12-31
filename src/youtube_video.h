@@ -122,7 +122,11 @@ namespace youtube
                     if(YOUTUBE_DEBUG_1)
                         std::cout << "c_length " << r1->content.length() << std::endl;
 
-                        std::cout << "c_length " << r1->content << std::endl;
+                        //std::cout << "c_length " << r1->content << std::endl;
+
+                        std::cout << "stat " << r1->status_code << std::endl;
+
+                        std::cout << "cookies " << r1->header_list["set-cookie"] << std::endl;
 
                     if(r1->status_code != 200
                     || r1->header_list["set-cookie"].find("youtube.com") == std::string::npos)
@@ -134,10 +138,16 @@ namespace youtube
                     }
 
                     std::string token = nextgen::regex_single_match("\"t\"\\: \"(.+?)\"\\,", r1->content);
+                    std::string fmt = nextgen::regex_single_match("\\%2C([0-9]+)\\%7Chttp", r1->content);
 
-                    if(token == nextgen::null_str)
+                    if(token == nextgen::null_str
+                    || fmt == nextgen::null_str)
                     {
                         std::cout << "[youtube] error: null token" << std::endl;
+                        std::cout << token << std::endl;
+                        std::cout << fmt << std::endl;
+
+                        std::cout << "c_content " << r1->content << std::endl;
 
                         return;
                     }
@@ -145,7 +155,9 @@ namespace youtube
                     nextgen::network::http_message m3;
 
                     m3->method = "GET";
-                    m3->url = "http://www.youtube.com/get_video?video_id=" + v1->id + "&t=" + token + "&el=detailpage&ps=";//&noflv=1";
+                    m3->url = "http://www.youtube.com/get_video?ptk=wmg&fmt=" + fmt + "&asv=3&video_id=" + v1->id + "&el=detailpage&t=" + token + "&noflv=1";
+
+                    //m3->url = "http://www.youtube.com/get_video?video_id=" + v1->id + "&t=" + token + "&el=detailpage&ps=";//&noflv=1";
                     m3->header_list["Host"] = "www.youtube.com";
                     m3->header_list["User-Agent"] = self->agent->title;
                     m3->header_list["Keep-Alive"] = "300";
@@ -161,18 +173,18 @@ namespace youtube
                     {
                         self->client.reconnect([=]()
                         {
-                            self.video_download_detail(m3, 0, view_max);
+                            self.video_download_detail(v1, m3, 0, view_max);
                         });
 
                         return;
                     }
 
-                    self.video_download_detail(m3, 0, view_max);
+                    self.video_download_detail(v1, m3, 0, view_max);
                 });
             });
         }
 
-        private: void video_download_detail(nextgen::network::http_message m3, size_t view_count, size_t view_max) const
+        private: void video_download_detail(video v1, nextgen::network::http_message m3, size_t view_count, size_t view_max) const
         {
             auto self = *this;
 
@@ -182,7 +194,7 @@ namespace youtube
                 {
                     self->client.send_and_receive(m3, [=](nextgen::network::http_message r3)
                     {
-                        if((r3->status_code != 204 && r3->status_code != 303)
+                        if((r3->status_code != 204)
                         || to_int(r3->header_list["content-length"]) != 0)
                         {
                             if(YOUTUBE_DEBUG_1)
@@ -191,8 +203,10 @@ namespace youtube
                             return;
                         }
 
+                        ++v1->session_views;
+
                         if(YOUTUBE_DEBUG_1)
-                            std::cout << "[proxos::youtube] VIEWED " << view_count+1 << " TIMES" << std::endl;
+                            std::cout << "[proxos::youtube] VIEWED " << view_count+1 << " TIMES (TOTAL = " << v1->session_views << ")" << std::endl;
 
                         if(r3->header_list["proxy-connection"] == "close"
                         || r3->header_list["connection"] == "close")
@@ -200,13 +214,13 @@ namespace youtube
                         {
                             self->client.reconnect([=]()
                             {
-                                self.video_download_detail(m3, view_count+1, view_max);
+                                self.video_download_detail(v1, m3, view_count+1, view_max);
                             });
 
                             return;
                         }
 
-                        self.video_download_detail(m3, view_count+1, view_max);
+                        self.video_download_detail(v1, m3, view_count+1, view_max);
                     });
                 }, nextgen::random(1000, 3000));
             }

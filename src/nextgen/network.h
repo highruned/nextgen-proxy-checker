@@ -200,7 +200,7 @@ namespace nextgen
                     typedef base_event_type accept_failure_event_type;
                     typedef base_event_type close_event_type;
 
-                    layer_base_variables(service_type service) : service(service), timer_(service.get_service()), timeout_(180)
+                    layer_base_variables(service_type service) : service(service), timer(service.get_service()), timeout(180)
                     {
 
                     }
@@ -215,9 +215,9 @@ namespace nextgen
                     event<close_event_type> close_event;
 
                     service_type service;
-                    timer_type timer_;
-                    network_layer_type network_layer_;
-                    timeout_type timeout_;
+                    timer_type timer;
+                    network_layer_type network_layer;
+                    timeout_type timeout;
                 };
 
                 template<typename NetworkLayerType, typename VariablesType = layer_base_variables<NetworkLayerType>>
@@ -341,18 +341,18 @@ namespace nextgen
                         typedef std::function<void(asio::error_code const&)> cancel_handler_type;
                         typedef basic_service<> service_type;
 
-                        basic_layer_variables(service_type service) : base_type(service), service_(service), accepter_(service), socket_(service.get_service()), resolver_(service.get_service())
+                        basic_layer_variables(service_type service) : base_type(service), service(service), accepter(service), socket(service.get_service()), resolver(service.get_service())
                         {
 
                         }
 
                         event<accept_successful_event_type> accept_successful_event;
 
-                        service_type service_;
-                        accepter_type accepter_;
-                        socket_type socket_;
-                        resolver_type resolver_;
-                        cancel_handler_type cancel_handler_;
+                        service_type service;
+                        accepter_type accepter;
+                        socket_type socket;
+                        resolver_type resolver;
+                        cancel_handler_type cancel_handler;
 
                         NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
                     };
@@ -394,17 +394,17 @@ namespace nextgen
                         {
                             auto self = *this;
 
-                            self->cancel_handler_ = [=](asio::error_code const& error)
+                            self->cancel_handler = [=](asio::error_code const& error)
                             {
                                 if(error == asio::error::operation_aborted)
                                 {
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer cancelled (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer cancelled (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
                                 }
                                 else
                                 {
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer called back. Closing socket (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer called back. Closing socket (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
                                     // bugfix(daemn): read timer doesn't actually cancel
                                     self.cancel();
@@ -416,35 +416,35 @@ namespace nextgen
                         {
                             auto self = *this;
 
-                            return self->network_layer_.get_host();
+                            return self->network_layer.get_host();
                         }
 
                         public: void set_host(host_type const& host)
                         {
                             auto self = *this;
 
-                            self->network_layer_.set_host(host);
+                            self->network_layer.set_host(host);
                         }
 
                         public: port_type get_port()
                         {
                             auto self = *this;
 
-                            return self->network_layer_.get_port();
+                            return self->network_layer.get_port();
                         }
 
                         public: void set_port(port_type port)
                         {
                             auto self = *this;
 
-                            self->network_layer_.set_port(port);
+                            self->network_layer.set_port(port);
                         }
 
                         public: bool is_connected() const
                         {
                             auto self = *this;
 
-                            return self->socket_.is_open();
+                            return self->socket.is_open();
                         }
 
                         public: void cancel() const
@@ -452,10 +452,10 @@ namespace nextgen
                             auto self = *this;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::cancel> Cancelling socket (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                std::cout << "<socket::cancel> Cancelling socket (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                            if(self->socket_.native() != asio::detail::invalid_socket)
-                                self->socket_.cancel();
+                            if(self->socket.native() != asio::detail::invalid_socket)
+                                self->socket.cancel();
                             //else
                             //    std::cout << "<ClientSocket> Guarded an invalid socket." << std::endl;
                         }
@@ -465,10 +465,10 @@ namespace nextgen
                             auto self = *this;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::close> Closing socket normally. (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                std::cout << "<socket::close> Closing socket normally. (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                            if(self->socket_.native() != asio::detail::invalid_socket)
-                                self->socket_.close();
+                            if(self->socket.native() != asio::detail::invalid_socket)
+                                self->socket.close();
 
                             self->close_event();
                         }
@@ -478,7 +478,7 @@ namespace nextgen
                             auto self = *this;
 
                             asio::socket_base::bytes_readable command(true);
-                            self->socket_.io_control(command);
+                            self->socket.io_control(command);
 
                             return command.get();
                         }
@@ -497,35 +497,35 @@ namespace nextgen
                             if(failure_handler == 0)
                                 failure_handler = self->connect_failure_event;
 
-                            self->network_layer_.set_host(host_);
-                            self->network_layer_.set_port(port_);
+                            self->network_layer.set_host(host_);
+                            self->network_layer.set_port(port_);
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::connect> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                std::cout << "<socket::connect> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                            resolver_type::query query_(host_, port_ == 80 ? "http" : to_string(port_));
+                            resolver_type::query query(host_, port_ == 80 ? "http" : to_string(port_));
 
-                            if(self->timeout_ > 0)
+                            if(self->timeout > 0)
                             {
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::connect> create timer (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::connect> create timer (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                                self->timer_.expires_from_now(boost::posix_time::seconds(30));
-                                self->timer_.async_wait(self->cancel_handler_);
+                                self->timer.expires_from_now(boost::posix_time::seconds(30));
+                                self->timer.async_wait(self->cancel_handler);
                             }
 
-                            self->resolver_.async_resolve(query_, [=](asio::error_code const& error, resolver_type::iterator endpoint_iterator)
+                            self->resolver.async_resolve(query, [=](asio::error_code const& error, resolver_type::iterator endpoint_iterator)
                             {
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::connect handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::connect handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                                if(self->timeout_ > 0)
+                                if(self->timeout > 0)
                                     self.cancel_timer();
 
                                 if(!error)
                                 {
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "<socket::connect handler> resolve success (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                        std::cout << "<socket::connect handler> resolve success (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
                                     //todo(daemn) add additional endpoint connection tries
                                     asio::ip::tcp::endpoint endpoint = *endpoint_iterator;
@@ -533,20 +533,20 @@ namespace nextgen
                                     //++endpoint_iterator;
 
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "<socket::connect handler> create timer (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                        std::cout << "<socket::connect handler> create timer (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                                    if(self->timeout_ > 0)
+                                    if(self->timeout > 0)
                                     {
-                                        self->timer_.expires_from_now(boost::posix_time::seconds(30));
-                                        self->timer_.async_wait(self->cancel_handler_);
+                                        self->timer.expires_from_now(boost::posix_time::seconds(30));
+                                        self->timer.async_wait(self->cancel_handler);
                                     }
 
-                                    self->socket_.async_connect(endpoint, [=](asio::error_code const& error)
+                                    self->socket.async_connect(endpoint, [=](asio::error_code const& error)
                                     {
                                         if(NEXTGEN_DEBUG_1)
-                                            std::cout << "<socket::connect handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                            std::cout << "<socket::connect handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                                        if(self->timeout_ > 0)
+                                        if(self->timeout > 0)
                                             self.cancel_timer();
 
                                         if(!error)
@@ -566,7 +566,7 @@ namespace nextgen
                                 }
                                 else
                                 {
-                                    if(self->timeout_ > 0)
+                                    if(self->timeout > 0)
                                         self.cancel_timer();
 
                                     if(NEXTGEN_DEBUG_4)
@@ -583,7 +583,7 @@ namespace nextgen
                         {
                             auto self = *this;
 
-                            self->timer_.cancel();
+                            self->timer.cancel();
                         }
 
                         public: template<typename stream_type> void send(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
@@ -597,24 +597,24 @@ namespace nextgen
                                 failure_handler = self->send_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::write> create timer (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                std::cout << "<socket::write> create timer (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                            if(self->timeout_ > 0)
+                            if(self->timeout > 0)
                             {
-                                self->timer_.expires_from_now(boost::posix_time::seconds(self->timeout_));
-                                self->timer_.async_wait(self->cancel_handler_);
+                                self->timer.expires_from_now(boost::posix_time::seconds(self->timeout));
+                                self->timer.async_wait(self->cancel_handler);
                             }
 
-                            asio::async_write(self->socket_, stream.get_buffer(),
+                            asio::async_write(self->socket, stream.get_buffer(),
                             [=](asio::error_code const& error, size_t& total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
-                                if(self->timeout_ > 0)
+                                if(self->timeout > 0)
                                     self.cancel_timer();
 
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::write handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::write handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
                                 if(!error)
                                 {
@@ -647,16 +647,16 @@ namespace nextgen
                                 failure_handler = self->receive_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::receive> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                std::cout << "<socket::receive> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
                             auto on_read = [=](asio::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::receive handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::receive handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                                if(self->timeout_ > 0)
+                                if(self->timeout > 0)
                                     self.cancel_timer();
 
                                 if(!error)
@@ -674,10 +674,10 @@ namespace nextgen
                                 }
                             };
 
-                            if(self->timeout_ > 0)
+                            if(self->timeout > 0)
                             {
-                                self->timer_.expires_from_now(boost::posix_time::seconds(self->timeout_));
-                                self->timer_.async_wait(self->cancel_handler_);
+                                self->timer.expires_from_now(boost::posix_time::seconds(self->timeout));
+                                self->timer.async_wait(self->cancel_handler);
                             }
 
                             asio::async_read_until(self.get_socket(), stream.get_buffer(), delimiter, on_read);
@@ -698,16 +698,16 @@ namespace nextgen
                                 failure_handler = self->receive_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::receive> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                std::cout << "<socket::receive> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
                             auto on_read = [=](asio::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::receive handler> (" << self->network_layer_.get_host() << ":" << self->network_layer_.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::receive handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                                if(self->timeout_ > 0)
+                                if(self->timeout > 0)
                                     self.cancel_timer();
 
                                 if(!error)
@@ -725,16 +725,16 @@ namespace nextgen
                                 }
                             };
 
-                            if(self->timeout_ > 0)
+                            if(self->timeout > 0)
                             {
-                                self->timer_.expires_from_now(boost::posix_time::seconds(self->timeout_));
-                                self->timer_.async_wait(self->cancel_handler_);
+                                self->timer.expires_from_now(boost::posix_time::seconds(self->timeout));
+                                self->timer.async_wait(self->cancel_handler);
                             }
 
                             asio::async_read(self.get_socket(), stream.get_buffer(), delimiter, on_read);
                         }
 
-                        public: void accept(port_type port_, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0) const
+                        public: void accept(port_type port, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
 
@@ -752,22 +752,22 @@ namespace nextgen
 
                             this_type client(self.get_service());
 
-                            if(self->accepter_->port != port_)
-                                self->accepter_.open(port_);
+                            if(self->accepter->port != port)
+                                self->accepter.open(port);
 
-                            self->accepter_.accept(client.get_socket(), [=](asio::error_code const& error)
+                            self->accepter.accept(client.get_socket(), [=](asio::error_code const& error)
                             {
                                 if(NEXTGEN_DEBUG_1)
                                     std::cout << "[nextgen:network:ip:transport:tcp:socket:accept] Trying to accept client..." << std::endl;
 
                                 if(!error)
                                 {
-                                    client->network_layer_.set_host(client->socket_.local_endpoint().address().to_string());
-                                    client->network_layer_.set_port(client->socket_.local_endpoint().port());
+                                    client->network_layer.set_host(client->socket.local_endpoint().address().to_string());
+                                    client->network_layer.set_port(client->socket.local_endpoint().port());
 
                                     successful_handler(client);
 
-                                    self.accept(port_, successful_handler, failure_handler);
+                                    self.accept(port, successful_handler, failure_handler);
                                 }
                                 else
                                 {
@@ -783,21 +783,21 @@ namespace nextgen
                         {
                             auto self = *this;
 
-                            return self->socket_;
+                            return self->socket;
                         }
 
                         public: service_type get_service() const
                         {
                             auto self = *this;
 
-                            return self->service_;
+                            return self->service;
                         }
 
                         public: timer_type& get_timer() const
                         {
                             auto self = *this;
 
-                            return self->timer_;
+                            return self->timer;
                         }
 
                         NEXTGEN_ATTACH_SHARED_BASE(basic_layer, base_type,
@@ -933,7 +933,7 @@ namespace nextgen
 
                     public: void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = null, connect_failure_event_type failure_handler2 = null) const
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                         auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
@@ -952,7 +952,7 @@ namespace nextgen
 
                     public: void reconnect(connect_successful_event_type successful_handler = 0, connect_failure_event_type failure_handler = 0) const
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         if(NEXTGEN_DEBUG_5)
                             std::cout << "[nextgen::network::layer_base] reconnecting" << std::endl;
@@ -963,15 +963,16 @@ namespace nextgen
 
                     public: void disconnect() const
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         self->transport_layer.close();
                     }
 
                     public: void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
                     {
-                        auto self = *this;
-
+                        layer_type self = *this;
+std::cout << "base receive" << std::endl;
+std::cout << "type2: " << typeid(self).name() << std::endl;
                         if(successful_handler == 0)
                             successful_handler = self->receive_successful_event;
 
@@ -993,7 +994,7 @@ namespace nextgen
 
                     public: template<typename stream_type> void send_stream(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         if(successful_handler == 0)
                             successful_handler = self->send_successful_event;
@@ -1006,7 +1007,7 @@ namespace nextgen
 
                     public: void send(message_type request, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         request.pack();
 
@@ -1015,7 +1016,7 @@ namespace nextgen
 
                     public: void send_and_receive(message_type request, receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         if(successful_handler == 0)
                             successful_handler = self->receive_successful_event;
@@ -1035,7 +1036,7 @@ namespace nextgen
 
                     public: void accept(port_type port, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                         auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
@@ -1056,7 +1057,7 @@ namespace nextgen
 
                     public: bool is_alive() const
                     {
-                        auto self = *this;
+                        layer_type self = *this;
 
                         return (self->keep_alive_threshold == 0) ? true : (self->keep_alive_threshold > self->keep_alive_timer.stop());
                     }
@@ -1505,7 +1506,7 @@ namespace nextgen
                         public: void unpack_headers() const
                         {
                             auto self = *this;
-
+std::cout << "http message unpack headers" << std::endl;
                             if(NEXTGEN_DEBUG_4)
                                 std::cout << "XXXXXX" << self->stream.get_buffer().in_avail() << std::endl;
 
@@ -1708,8 +1709,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: typedef typename base_type::send_failure_event_type send_failure_event_type;
                         public: typedef std::function<void(message_type)> receive_successful_event_type;
                         public: typedef typename base_type::receive_failure_event_type receive_failure_event_type;
-                        public: typedef std::function<void(this_type)> accept_successful_event_type;
-                        public: typedef typename base_type::accept_failure_event_type accept_failure_event_type;
                         public: typedef typename base_type::host_type host_type;
                         public: typedef typename base_type::port_type port_type;
                         public: typedef typename base_type::keep_alive_threshold_type keep_alive_threshold_type;
@@ -1728,7 +1727,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
-
+std::cout << "type1: " << typeid(self).name() << std::endl;
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
@@ -1757,7 +1756,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 port = self->port;
                             }
 
-                            self->transport_layer = transport_layer_type(self->transport_layer->service_);
+                            self->transport_layer = transport_layer_type(self->transport_layer->service);
 
                             self->transport_layer.connect(host, port,
                             [=]
@@ -2032,7 +2031,8 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
                         {
                             auto self = *this;
-
+std::cout << "http client receive" << std::endl;
+std::cout << "type3: " << typeid(self).name() << std::endl;
                             if(successful_handler == 0)
                                 successful_handler = self->receive_successful_event;
 
@@ -2049,14 +2049,6 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                 if(NEXTGEN_DEBUG_3)
                                     std::cout << "Z: " << response->raw_header_list << std::endl;
-
-                                if(response->stream.get_buffer().in_avail())
-                                {
-                                    response.unpack_content();
-
-                                    if(NEXTGEN_DEBUG_3)
-                                        std::cout << "Y: " << response->content << std::endl;
-                                }
 
                                 if(response->status_code != 0 || response->method == "POST")
                                 // this http message has content, and we need to know the length
@@ -2204,6 +2196,8 @@ std::cout << "size: " << self->content.size() << std::endl;
                                             if(NEXTGEN_DEBUG_5)
                                                 std::cout << "No http content-length specified due to 204" << std::endl;
 
+                                            response->header_list["content-length"] = "0";
+
                                             response.unpack_content();
 
                                             successful_handler(response);
@@ -2242,27 +2236,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         failure_handler();
                                     }
                                 }
-                            },
-                            failure_handler);
-                        }
-
-                        public: void accept(port_type port_, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
-                        {
-                            auto self = *this;
-
-                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
-                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
-
-                            if(successful_handler == null)
-                                successful_handler = self->accept_successful_event;
-
-                            if(failure_handler == 0)
-                                failure_handler = self->accept_failure_event;
-
-                            self->transport_layer.accept(port_,
-                            [=](transport_layer_type client)
-                            {
-                                successful_handler(this_type(client));
                             },
                             failure_handler);
                         }

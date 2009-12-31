@@ -127,7 +127,7 @@ void application::run(int argc, char* argv[])
 
             auto agent_list = *self->proxy_database.get_row_list(q1);
 
-            std::string q2("SELECT proxy_host, proxy_port, type_id FROM proxies WHERE state_id = 8 AND proxy_port != 3124 AND proxy_port != 3127 LIMIT 1");//state_id = 8 ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC LIMIT 1,1");
+            std::string q2("SELECT proxy_host, proxy_port, type_id FROM proxies WHERE state_id = 8 AND proxy_port != 3124 AND proxy_port != 3127 LIMIT 50");//state_id = 8 ORDER BY proxy_rating DESC, proxy_hits DESC, proxy_latency ASC LIMIT 1,1");
 
             if(YOUTUBE_DEBUG_1)
                 std::cout << q2 << std::endl;
@@ -152,7 +152,7 @@ void application::run(int argc, char* argv[])
                 c1->proxy = proxy;
                 c1->agent = agent;
 
-                c1.view_video(video, 250);
+                c1.view_video(video, 3);
             });
         }
         else if(command == "create_account")
