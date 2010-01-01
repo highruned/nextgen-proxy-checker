@@ -231,7 +231,7 @@ namespace youtube
             auto self = *this;
 
             self->client->proxy = "http";
-            self->client.connect("google.com", 80, nextgen::network::ipv4_address("85.185.25.250", 3128), //"219.93.178.162", 3128),
+            self->client.connect("www.google.com", 80, nextgen::network::ipv4_address("85.185.25.250", 3128), //"219.93.178.162", 3128),
             [=]
             {
                 nextgen::network::http_message m1;
@@ -253,87 +253,132 @@ namespace youtube
                         return;
                     }
 
-                    std::cout << "new_account response: " << r1->content << std::endl;
+                    std::cout << "new_account response: " << std::endl;
 
-                    std::string ctoken = nextgen::regex_single_match("accounts/Captcha\\?ctoken=(.+?)\"", r1->content);
-                    std::string dsh = nextgen::regex_single_match("id=\"dsh\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounttoken = nextgen::regex_single_match("id=\"newaccounttoken\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounturl = nextgen::regex_single_match("id=\"newaccounturl\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounttoken_audio = nextgen::regex_single_match("id=\"newaccounttoken_audio\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string newaccounturl_audio = nextgen::regex_single_match("id=\"newaccounturl_audio\".{1,15}value=\"(.+?)\"", r1->content);
-                    std::string requested_tos_location = nextgen::regex_single_match("value=\"(.+?)\".{1,30}selected", r1->content);
 
-                    std::cout << "https://www.google.com/accounts/Captcha?ctoken=" + ctoken << std::endl;
+                    std::string ctoken = nextgen::regex_single_match("accounts/Captcha\\?ctoken=([^\"<>]+)\"", r1->content);
+                    std::string dsh = nextgen::regex_single_match("id=\"dsh\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounttoken = nextgen::regex_single_match("id=\"newaccounttoken\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounturl = nextgen::regex_single_match("id=\"newaccounturl\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounttoken_audio = nextgen::regex_single_match("id=\"newaccounttoken_audio\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounturl_audio = nextgen::regex_single_match("id=\"newaccounturl_audio\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string location = nextgen::regex_single_match("value=\"([^\"<>]+)\"[^<>]+selected", r1->content);
 
-                    std::string newaccountcaptcha;
+                std::ofstream f;
+                f.open("google1.html", std::ios::out | std::ios::binary);
 
-                    std::cin >> newaccountcaptcha;
+                if(f.is_open())
+                {
+                    find_and_replace(r1->content, "http", "hxxp");
+                    f << r1->content;
+                }
 
-                    m1->content = "dsh=" + url_encode(dsh)
-                    + "&ktl="
-                    + "&ktf=Email+Passwd+PasswdAgain+newaccountcaptcha+"
-                    + "&Email=" + url_encode(a1->user->email.to_string())
-                    + "&Passwd=" + url_encode(a1->user->password)
-                    + "&PasswdAgain=" + url_encode(a1->user->password)
-                    + "&PersistentCookie=yes&rmShown=1&smhck=1&nshk=1&loc=CA&newaccounttoken=" + url_encode(newaccounttoken)
-                    + "&newaccounturl=" + url_encode(newaccounturl)
-                    + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
-                    + "&newaccounturl_audio=" + url_encode(newaccounturl_audio)
-                    + "&newaccountcaptcha=" + url_encode(newaccountcaptcha)
-                    + "&privacy_policy_url=http%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fprivacy.html"
-                    + "&requested_tos_location=" + requested_tos_location
-                    + "&requested_tos_language=en&served_tos_location=CA&served_tos_language=en&submitbutton=I+accept.+Create+my+account.";
+std::cout << "email: " << a1->user->email.to_string() << std::endl;
+std::cout << "password: " << a1->user->password << std::endl;
 
-                    std::cout << m1->content << std::endl;
+                    m1->method = "GET";
+                    m1->referer = m1->url;
+                    m1->url = "https://www.google.com/accounts/Captcha?ctoken=" + ctoken;
+                    m1->header_list["Referer"] = m1->referer;
 
-                    m1->url = "https://www.google.com/accounts/CreateAccount";
-                    m1->header_list["Referer"] = m1->url;
+                    std::cout << m1->url << std::endl;
 
-                    self->client.send(m1,
-                    [=]
+                    self->client.send_and_receive(m1,
+                    [=](nextgen::network::http_message r2)
                     {
-                        a1->user->email.receive(
-                        [=](std::string content)
+                        std::cout << "got captcha" << std::endl;
+
+                std::ofstream f;
+                f.open("captcha.jpeg", std::ios::out | std::ios::binary);
+
+                if(f.is_open())
+                {
+
+                    f << r2->content;
+                }
+
+                        std::string newaccountcaptcha;
+
+                        std::getline(std::cin, newaccountcaptcha);
+
+                        std::string ktl = "";
+
+                        std::getline(std::cin, ktl);
+
+                        m1->content = "dsh=" + url_encode(dsh)
+                        + "&ktl=" + url_encode(ktl)
+                        + "&ktf=Email+Passwd+PasswdAgain+newaccountcaptcha+"
+                        + "&Email=" + url_encode(a1->user->email.to_string())
+                        + "&Passwd=" + url_encode(a1->user->password)
+                        + "&PasswdAgain=" + url_encode(a1->user->password)
+                        + "&PersistentCookie=yes&rmShown=1&smhck=1&nshk=1&loc=" + location
+                        + "&newaccounttoken=" + url_encode(newaccounttoken)
+                        + "&newaccounturl=" + url_encode(newaccounturl)
+                        + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
+                        + "&newaccounturl_audio=" + url_encode(newaccounturl_audio)
+                        + "&newaccountcaptcha=" + url_encode(newaccountcaptcha)
+                        + "&privacy_policy_url=http%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fprivacy.html"
+                        + "&requested_tos_location=" + location
+                        + "&requested_tos_language=en&served_tos_location=" + location
+                        + "&served_tos_language=en&submitbutton=I+accept.+Create+my+account.";
+
+                        std::cout << m1->content << std::endl;
+
+                        m1->method = "POST";
+                        m1->url = "https://www.google.com/accounts/CreateAccount";
+
+                        self->client.send(m1,
+                        [=]
                         {
-                            std::string c = nextgen::regex_single_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
-
-                            if(c == nextgen::null_str)
+                            a1->user->email.receive(
+                            [=](std::string content)
                             {
-                                std::cout << "[youtube] error: null c" << std::endl;
+                                std::string c = nextgen::regex_single_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
 
-                                return;
-                            }
+                                if(c == nextgen::null_str)
+                                {
+                                    std::cout << "[youtube] error: null c" << std::endl;
 
-                            nextgen::network::http_client c2(self->network_service);
+                                    return;
+                                }
 
-                            nextgen::network::http_message m2;
+                                nextgen::network::http_client c2(self->network_service);
 
-                            m2->method = "GET";
-                            m2->url = "https://www.google.com/accounts/VE?c=" + c + "&hl=en";
-                            m2->header_list["Host"] = "www.google.com";
-                            m2->header_list["User-Agent"] = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
-                            m2->header_list["Keep-Alive"] = "300";
-                            m2->header_list["Connection"] = "keep-alive";
+                                nextgen::network::http_message m2;
 
-                            c2.send_and_receive(m2,
-                            [=](nextgen::network::http_message r2)
+                                m2->method = "GET";
+                                m2->url = "https://www.google.com/accounts/VE?c=" + c + "&hl=en";
+                                m2->header_list["Host"] = "www.google.com";
+                                m2->header_list["User-Agent"] = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";
+                                m2->header_list["Keep-Alive"] = "300";
+                                m2->header_list["Connection"] = "keep-alive";
+
+                                c2.send_and_receive(m2,
+                                [=](nextgen::network::http_message r2)
+                                {
+
+                                    if(successful_handler != nextgen::null)
+                                        successful_handler();
+                                });
+                            });
+
+                            self->client.receive(
+                            [=](nextgen::network::http_message r3)
                             {
-                                std::cout << r2->content << std::endl;
+                                std::cout << "create_account response: " << std::endl;
+                    std::ofstream f;
+                    f.open("google2.html", std::ios::out | std::ios::binary);
 
-                                if(successful_handler != nextgen::null)
-                                    successful_handler();
+                    if(f.is_open())
+                    {
+                        find_and_replace(r3->content, "http", "hxxp");
+                        f << r3->content;
+                    }
+                                self->client.disconnect();
                             });
                         });
-
-                        self->client.receive(
-                        [=](nextgen::network::http_message r2)
-                        {
-                            std::cout << "create_account response: " << r2->content << std::endl;
-
-                            self->client.disconnect();
-                        });
                     });
-                });
+                    });
             });
         }
 

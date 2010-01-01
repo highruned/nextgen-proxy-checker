@@ -6,7 +6,7 @@ class application : public nextgen::singleton<application>
 {
     struct variables
     {
-        variables() : mail_server(network_service, 25), social_service(main_database)
+        variables() : mail_server(network_service, 25)
         {
 
         }
@@ -141,7 +141,9 @@ void application::run(int argc, char* argv[])
                 if(YOUTUBE_DEBUG_1)
                     std::cout << r1["proxy_host"] << " " << r1["proxy_port"] << std::endl;
 
-                proxos::proxy proxy(r1["proxy_host"], to_int(r1["proxy_port"]));
+                proxos::proxy proxy;
+                proxy->host = r1["proxy_host"];
+                proxy->port = to_int(r1["proxy_port"]);
                 proxy->type = to_int(r1["type_id"]);
 
                 auto r2 = *agent_list[nextgen::random(0, (int)agent_list.size()-1)];
@@ -166,13 +168,13 @@ void application::run(int argc, char* argv[])
 
             auto id = nextgen::random(100, 10000);
 
-            switch(nextgen::random(1, 5))
+            switch(nextgen::random(1, 3))
             {
                 case 1: a1->user->username = a1->person->name->first + to_string(id); break;
                 case 2: a1->user->username = a1->person->name->last + to_string(id); break;
-                case 3: a1->user->username = a1->person->name->first + to_string(id); break;
-                case 4: a1->user->username = a1->person->name->first + "_" + to_string(id) + "x"; break;
-                case 5: a1->user->username = a1->person->name->first + "_" + to_string(id); break;
+                case 3: a1->user->username = a1->person->name->first + to_string(id) + "x"; break;
+                //case 4: a1->user->username = a1->person->name->first + "_" + to_string(id) + "x"; break;
+                //case 5: a1->user->username = a1->person->name->first + "_" + to_string(id); break;
                 // nicknames
             }
 
@@ -211,7 +213,7 @@ void application::run(int argc, char* argv[])
         self->network_service.update();
         self->social_service.update();
 
-        nextgen::sleep(0.01);
+        nextgen::sleep(0.05);
     }
 }
 

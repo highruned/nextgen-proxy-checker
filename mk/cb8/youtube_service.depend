@@ -1,8 +1,8 @@
 # depslib dependency file v1.0
-1262239030 source:/home/daemn/projects/proxos/src/youtube_service.cpp
+1262342884 source:/home/daemn/projects/proxos/src/youtube_service.cpp
 	"youtube_video.h"
 
-1262237162 /home/daemn/projects/proxos/src/youtube_video.h
+1262343756 /home/daemn/projects/proxos/src/youtube_video.h
 	"nextgen/common.h"
 	"nextgen/network.h"
 	"nextgen/database.h"
@@ -87,7 +87,7 @@
 1260177067 /home/daemn/projects/proxos/src/gzip.h
 	<zlib.h>
 
-1262226347 /home/daemn/projects/proxos/src/proxy_checker.h
+1262348153 /home/daemn/projects/proxos/src/proxy_checker.h
 	"nextgen/common.h"
 	"nextgen/network.h"
 	"nextgen/database.h"
@@ -179,5 +179,93 @@
 	"common.h"
 
 1262226482 /home/daemn/projects/proxos/src/nextgen/social.h
+	"common.h"
+
+1262348121 /home/daemn/projects/nextgenengine/src/nextgen/common.h
+	<cstddef>
+	<cstdio>
+	<cmath>
+	<ctime>
+	<csignal>
+	<fstream>
+	<iostream>
+	<istream>
+	<ostream>
+	<string>
+	<sstream>
+	<iomanip>
+	<map>
+	<vector>
+	<string>
+	<utility>
+	<stdexcept>
+	<set>
+	<list>
+	<queue>
+	<algorithm>
+	<cassert>
+	<deque>
+	<cstdlib>
+	<cstring>
+	<errno.h>
+	<sys/types.h>
+	<stdio.h>
+	<netinet/in.h>
+	<netdb.h>
+	<asio.hpp>
+	<asio/ssl.hpp>
+	<boost/iostreams/stream.hpp>
+	<boost/config.hpp>
+	<boost/iostreams/categories.hpp>
+	<boost/iostreams/detail/ios.hpp>
+	<boost/thread.hpp>
+	<boost/bind.hpp>
+	<boost/range.hpp>
+	<boost/range/iterator_range.hpp>
+	<boost/shared_ptr.hpp>
+	<boost/shared_array.hpp>
+	<boost/ref.hpp>
+	<boost/numeric/conversion/cast.hpp>
+	<boost/lexical_cast.hpp>
+	<boost/any.hpp>
+	<boost/function.hpp>
+	<boost/random.hpp>
+	<boost/tuple/tuple.hpp>
+	<boost/unordered_map.hpp>
+	<boost/type_traits.hpp>
+	<boost/utility.hpp>
+	<boost/array.hpp>
+	<boost/enable_shared_from_this.hpp>
+	<boost/serialization/nvp.hpp>
+	<boost/serialization/map.hpp>
+	<boost/serialization/vector.hpp>
+	<boost/archive/xml_iarchive.hpp>
+	<boost/archive/xml_oarchive.hpp>
+	<boost/archive/xml_archive_exception.hpp>
+	<boost/exception/diagnostic_information.hpp>
+	<boost/algorithm/string.hpp>
+	<boost/algorithm/string/predicate.hpp>
+	<boost/algorithm/string/finder.hpp>
+	<boost/date_time/gregorian/parsers.hpp>
+	"content_gzip.h"
+	"mysql/mysql.h"
+	<iphlpapi.h>
+	<Psapi.h>
+	<stdio.h>
+	<Wincrypt.h>
+	<sys/time.h>
+	<stdio.h>
+	<unistd.h>
+
+1261994202 /home/daemn/projects/nextgenengine/src/nextgen/content_gzip.h
+	<zlib.h>
+
+1262349640 /home/daemn/projects/nextgenengine/src/nextgen/network.h
+	"common.h"
+
+1262258277 /home/daemn/projects/nextgenengine/src/nextgen/database.h
+	"common.h"
+
+1262258354 /home/daemn/projects/nextgenengine/src/nextgen/social.h
 	"common.h"
 

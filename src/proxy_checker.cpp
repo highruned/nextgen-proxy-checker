@@ -1,4 +1,4 @@
-#define FD_SETSIZE 65535
+#define FD_SETSIZE 32768
 
 #include "proxy_checker.h"
 
@@ -120,8 +120,6 @@ class application : public nextgen::singleton<application>
     {
         auto self = *this;
 
-        std::cout << proxy->host << ":" << proxy->port << std::endl;
-
         address a(proxy->host);
 
         if(!a.is_valid())
@@ -197,7 +195,13 @@ class application : public nextgen::singleton<application>
 
             // todo(daemn) check mysql table check table proxies.proxies; for status OK
             {
-                std::string query = "UPDATE proxies SET type_id = " + to_string(proxy->type) + ", proxy_latency = " + to_string(proxy->latency) + ", state_id = " + to_string(proxy->state) + ", proxy_rating = " + to_string(proxy->rating) + ", proxy_last_checked = " + to_string(time(0)) + ", proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy.get_id()) + " LIMIT 1";
+                std::string query = "UPDATE proxies SET type_id = " + to_string(proxy->type)
+                + ", proxy_latency = " + to_string(proxy->latency)
+                + ", state_id = " + to_string(proxy->state)
+                + ", proxy_rating = " + to_string(proxy->rating)
+                + ", proxy_last_checked = " + to_string(time(0))
+                + ", proxy_check_delay = " + to_string(proxy->check_delay)
+                + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
 
                 std::cout << query << " after " << to_string(proxy->latency) << " seconds. " << std::endl;
 
@@ -291,9 +295,10 @@ void application::run(int argc, char* argv[])
         {
             auto r1 = *row;
 
-            std::cout << r1["proxy_host"] << " " << r1["proxy_port"] << " " << r1["proxy_rating"] << std::endl;
-
-            proxos::proxy proxy(r1["proxy_host"], to_int(r1["proxy_port"]), to_int(r1["proxy_id"]));
+            proxos::proxy proxy;
+            proxy->host = r1["proxy_host"];
+            proxy->port = to_int(r1["proxy_port"]);
+            proxy->id = to_int(r1["proxy_id"]);
             proxy->rating = to_int(r1["proxy_rating"]);
             proxy->state = to_int(r1["state_id"]);
             proxy->type = to_int(r1["type_id"]);
@@ -320,7 +325,9 @@ void application::run(int argc, char* argv[])
 
         if(command == "check_proxy")
         {
-            proxos::proxy proxy(argv[2], to_int(argv[3]));
+            proxos::proxy proxy;
+            proxy->host = argv[2];
+            proxy->port = to_int(argv[3]);
 
             self.check_proxy(proxy);
         }
@@ -334,7 +341,9 @@ void application::run(int argc, char* argv[])
 
             auto r1 = *self->proxy_database.get_row(query);
 
-            proxos::proxy proxy(r1["proxy_host"], to_int(r1["proxy_port"]));
+            proxos::proxy proxy;
+            proxy->host = r1["proxy_host"];
+            proxy->port = to_int(r1["proxy_port"]);
             proxy->rating = to_int(r1["proxy_rating"]);
             proxy->state = to_int(r1["state_id"]);
             proxy->type = to_int(r1["type_id"]);
@@ -355,7 +364,8 @@ void application::run(int argc, char* argv[])
         {
             std::cout << "[proxos:application:run] Updating services..." << std::endl;
             std::cout << "C" << self->proxy_checker->job_list.size() << std::endl;
-            std::cout << "D" << self->proxy_checker->server->client_list.size() << std::endl;
+            std::cout << "D" << self->proxy_checker->judge_server->client_list.size() << std::endl;
+            std::cout << "descriptors: " << nextgen::get_process_total_descriptors(nextgen::get_current_process_id()) << std::endl;
 
             timer.start();
         }
@@ -363,7 +373,7 @@ void application::run(int argc, char* argv[])
         self->proxy_checker.update();
         self->network_service.update();
 
-        nextgen::sleep(0.05);
+        nextgen::sleep(0.01);
     }
 }
 

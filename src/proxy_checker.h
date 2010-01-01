@@ -45,113 +45,12 @@ namespace proxos
             static const uint32_t perfect = 8;
             static const uint32_t banned = 9;
             static const uint32_t invalid = 10;
+            static const uint32_t chunked = 11;
             //user_agent_via, cache_control, cache_info, connection_close, connection_keep_alive,
         };
 
-		public: host_type const& get_host() const
-		{
-		    auto self = *this;
-
-			return self->host;
-		}
-
-		public: void set_host(host_type const& host) const
-		{
-		    auto self = *this;
-
-			self->host = host;
-		}
-
-		public: port_type get_port() const
-		{
-		    auto self = *this;
-
-			return self->port;
-		}
-
-		public: void set_port(port_type port) const
-		{
-		    auto self = *this;
-
-			self->port = port;
-		}
-
-		public: id_type get_id() const
-		{
-		    auto self = *this;
-
-			return self->id;
-		}
-
-		public: void set_id(id_type id) const
-		{
-		    auto self = *this;
-
-			self->id = id;
-		}
-
-		public: latency_type get_latency() const
-		{
-		    auto self = *this;
-
-			return self->latency;
-		}
-
-		public: void set_latency(latency_type latency) const
-		{
-		    auto self = *this;
-
-			self->latency = latency;
-		}
-
-		public: timer_type get_timer() const
-		{
-		    auto self = *this;
-
-			return self->timer;
-		}
-
-		public: void set_timer(timer_type timer) const
-		{
-		    auto self = *this;
-
-			self->timer = timer;
-		}
-
-		public: uint32_t get_state() const
-		{
-		    auto self = *this;
-
-		    return self->state;
-		}
-
-		public: void set_state(uint32_t state) const
-		{
-		    auto self = *this;
-
-            self->state = state;
-		}
-
-		public: void from_row(nextgen::database::row& row) const
-		{
-		    auto self = *this;
-
-		    auto r1 = *row;
-
-			self->host = r1["proxy_host"];
-			self->port = to_int(r1["proxy_port"]);
-			self->id = to_int(r1["proxy_id"]);
-		}
-
         private: struct variables
         {
-            variables(nextgen::database::row& row)
-            {
-                auto r1 = *row;
-
-                variables(r1["proxy_host"], to_int(r1["proxy_port"]), to_int(r1["proxy_id"]));
-            }
-
             variables(host_type const& host = nextgen::null, port_type port = nextgen::null, id_type id = nextgen::null, type_type type = nextgen::null, latency_type latency = nextgen::null) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
             {
 
@@ -227,7 +126,7 @@ namespace proxos
 
             return std::find_if(self->job_list.begin(), self->job_list.end(), [=](job_type& job) -> bool
             {
-                return id == job->proxy.get_id();
+                return id == job->proxy->id;
             });
         }
 
@@ -247,7 +146,7 @@ namespace proxos
         {
             auto self = *this;
 
-            self->server.accept([=](client_type client)
+            self->judge_server.accept([=](client_type client)
             {
                 if(PROXOS_DEBUG_1)
                     std::cout << "[proxos:proxy_server] Proxy server (port 8080) accepted HTTP client." << std::endl;
@@ -275,7 +174,8 @@ namespace proxos
                             else if(r1->header_list.find("Via") != r1->header_list.end()
                             || r1->header_list.find("x-forwarded-for") != r1->header_list.end()
                             || r1->header_list.find("forwarded") != r1->header_list.end()
-                            || r1->header_list.find("client-ip") != r1->header_list.end())
+                            || r1->header_list.find("client-ip") != r1->header_list.end()
+                            || r1->header_list.find("x-cache") != r1->header_list.end())
                                 proxy->type = proxy_type::types::anonymous;
                             else
                                 proxy->type = proxy_type::types::elite;
@@ -292,25 +192,25 @@ namespace proxos
                             r2->content = "my_data";
 
                             if(PROXOS_DEBUG_1)
-                                std::cout << "[proxos:proxy_server] Server sending response to " << proxy.get_host() << ":" << proxy.get_port() << std::endl;
+                                std::cout << "[proxos:proxy_server] Server sending response to " << proxy->host << ":" << proxy->port << std::endl;
 
                             client.send(r2,
                             [=]
                             {
                                 if(PROXOS_DEBUG_1)
-                                    std::cout << "[proxos:proxy_server] Server response successful to " << proxy.get_host() << proxy.get_port() << std::endl;
+                                    std::cout << "[proxos:proxy_server] Server response successful to " << proxy->host << proxy->port << std::endl;
 
                                 // set proxy property to successful send
-                                proxy.set_state(proxy_type::states::can_only_send);
+                                proxy->state = proxy_type::states::can_only_send;
 
                                 client.disconnect();
                             },
                             [=]
                             {
                                 if(PROXOS_DEBUG_1)
-                                    std::cout << "[proxos:proxy_server] Server response failure to " << proxy.get_host() << proxy.get_port() << std::endl;
+                                    std::cout << "[proxos:proxy_server] Server response failure to " << proxy->host << proxy->port << std::endl;
 
-                                proxy.set_state(proxy_type::states::cannot_send_back);
+                                proxy->state = proxy_type::states::cannot_send_back;
                             });
                         }
                         // special case for initial confirmation we're hooked up correctly
@@ -424,8 +324,6 @@ namespace proxos
             if(PROXOS_DEBUG_1)
                 std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy->host << ":" << proxy->port << " (" << proxy->id << ")" << std::endl;
 
-std::cout << "proxy_type2: " << proxy->type << std::endl;
-
             switch(proxy->type)
             {
                 case proxy_type::types::transparent:
@@ -457,7 +355,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                 r1->header_list["Keep-Alive"] = "300";
                 r1->header_list["Connection"] = "keep-alive";
 
-                proxy.get_timer().start();
+                proxy->timer.start();
 
                 client.send_and_receive(r1,
                 [=](message_type r2)
@@ -470,21 +368,20 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                         std::cout << r2->content << std::endl;
                     }
 
-                    proxy.set_latency(proxy.get_timer().stop());
+                    proxy->latency = proxy->timer.stop();
 
                     if(r2->content.find("CoDeeN") != std::string::npos
                     || r2->content.find("PlanetLab") != std::string::npos)
                     {
-                        proxy.set_state(proxy_type::states::codeen);
+                        proxy->state = proxy_type::states::codeen;
                     }
                     // proxy can receive data
                     else if(r2->content.find("my_data") != std::string::npos)
                     {
                         // proxy can receive headers
-                        if(r2->header_list.find("set-cookie") != r2->header_list.end()
-                        && r2->header_list["set-cookie"].find("my_cookie") != std::string::npos)
+                        if(r2->header_list["set-cookie"].find("my_cookie") != std::string::npos)
                         {
-                            proxy.set_state(proxy_type::states::perfect);
+                            proxy->state = proxy_type::states::perfect;
 
                             if(PROXOS_DEBUG_1)
                                 std::cout << "good proxy" << std::endl;
@@ -492,7 +389,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                         // proxy cannot receive headers
                         else
                         {
-                            proxy.set_state(proxy_type::states::bad_return_headers);
+                            proxy->state = proxy_type::states::bad_return_headers;
 
                             if(PROXOS_DEBUG_1)
                                 std::cout << "goodish proxy - doesnt forward headers correctly - correct_headers = false" << std::endl;
@@ -527,14 +424,12 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     // proxy cannot receive data
                     else
                     {
-                        proxy.set_state(proxy_type::states::bad_return_data);
+                        proxy->state = proxy_type::states::bad_return_data;
                     }
 
                     client.disconnect();
 
-                    if(self->active_clients >= 0) --self->active_clients;
-
-                    self.remove_job(proxy.get_id());
+                    self.remove_job(proxy->id);
 
                     if(callback != 0)
                         callback();
@@ -552,9 +447,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                         || job->proxy->type == proxy_type::types::elite)
                         // we know this could only be a http proxy
                         {
-                            if(self->active_clients >= 0) --self->active_clients;
-
-                            self.remove_job(proxy.get_id());
+                            self.remove_job(proxy->id);
 
                             if(callback != 0)
                                 callback();
@@ -575,9 +468,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                         if(job->proxy->type == proxy::types::socks4)
                         // we know this could only be a socks4 proxy
                         {
-                            if(self->active_clients >= 0) --self->active_clients;
-
-                            self.remove_job(proxy.get_id());
+                            self.remove_job(proxy->id);
 
                             if(callback != 0)
                                 callback();
@@ -597,29 +488,23 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     }
                     else if(client->proxy == "socks5")
                     {
-                        if(self->active_clients >= 0) --self->active_clients;
-
-                        self.remove_job(proxy.get_id());
+                        self.remove_job(proxy->id);
 
                         if(callback != 0)
                             callback();
                     }
                     else if(client->proxy == "socks4n5")
                     {
-                        if(self->active_clients >= 0) --self->active_clients;
-
-                        self.remove_job(proxy.get_id());
+                        self.remove_job(proxy->id);
 
                         if(callback != 0)
                             callback();
                     }
                     else
                     {
-                        proxy.set_state(proxy_type::states::cannot_send);
+                        proxy->state = proxy_type::states::cannot_send;
 
-                        if(self->active_clients >= 0) --self->active_clients;
-
-                        self.remove_job(proxy.get_id());
+                        self.remove_job(proxy->id);
 
                         if(callback != 0)
                             callback();
@@ -628,11 +513,9 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
             },
             [=]
             {
-                proxy.set_state(proxy_type::states::cannot_connect);
+                proxy->state = proxy_type::states::cannot_connect;
 
-                self.remove_job(proxy.get_id());
-
-                if(self->active_clients >= 0) --self->active_clients;
+                self.remove_job(proxy->id);
 
                 if(callback != 0)
                     callback();
@@ -649,7 +532,7 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                 // run every 10 seconds
                 {
                     // try to clean out old server clients
-                    self->server.clean();
+                    self->judge_server.clean();
 
                     if(NEXTGEN_DEBUG_4)
                         std::cout << "[proxy_checker] Cleaning out expired jobs.";
@@ -671,8 +554,6 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                         }
                     });
 
-                    std::cout << "maybe refilling: " << self->active_clients << " / " << self->client_max << std::endl;
-
                     std::cout << "maybe refilling2: " << self->job_list.size() << " / " << self->client_max << std::endl;
 
                     // notify listeners we could use more jobs
@@ -692,8 +573,6 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
                     if(!job->complete)
                     {
                         job->complete = true;
-
-                        ++self->active_clients;
 
                         if(job->proxy->type == proxy::types::socks4
                         || job->proxy->type == proxy::types::socks4n5)
@@ -715,21 +594,19 @@ std::cout << "proxy_type2: " << proxy->type << std::endl;
 
         private: struct variables
         {
-            variables(std::string const& host, uint32_t port, network_service_type network_service) : enabled(false), active_clients(0), host(host), port(port), network_service(network_service), server(network_service, port), client_max(850)
+            variables(std::string const& host, uint32_t port, network_service_type network_service) : enabled(false), host(host), port(port), network_service(network_service), judge_server(network_service, port), client_max(2000)
             {
 
             }
 
             bool enabled;
-            size_t active_clients;
             std::string host;
             uint32_t port;
             job_list_type job_list;
             network_service_type network_service;
-            server_type server;
+            server_type judge_server;
             size_t client_max;
             timer_type timer;
-            job_list_type::iterator job_position;
             nextgen::event<refill_event_type> refill_event;
         };
 
