@@ -10,66 +10,6 @@ bool PROXOS_DEBUG_1 = 1;
 
 namespace proxos
 {
-	class proxy
-	{
-	    public: typedef proxy this_type;
-        public: typedef std::string host_type;
-        public: typedef uint32_t port_type;
-        public: typedef uint32_t id_type;
-        public: typedef uint32_t type_type;
-        public: typedef float latency_type;
-        public: typedef nextgen::timer timer_type;
-
-        public: struct types
-        {
-            static const uint32_t none = 0;
-            static const uint32_t transparent = 1;
-            static const uint32_t distorting = 2;
-            static const uint32_t anonymous = 3;
-            static const uint32_t elite = 4;
-            static const uint32_t socks4 = 5;
-            static const uint32_t socks5 = 6;
-            static const uint32_t socks4n5 = 7;
-        };
-
-        public: struct states
-        {
-            static const uint32_t none = 0;
-            static const uint32_t can_only_send = 1;
-            static const uint32_t cannot_send_back = 2;
-            static const uint32_t bad_return_headers = 3;
-            static const uint32_t bad_return_data = 4;
-            static const uint32_t cannot_send = 5;
-            static const uint32_t cannot_connect = 6;
-            static const uint32_t codeen = 7;
-            static const uint32_t perfect = 8;
-            static const uint32_t banned = 9;
-            static const uint32_t invalid = 10;
-            static const uint32_t chunked = 11;
-            //user_agent_via, cache_control, cache_info, connection_close, connection_keep_alive,
-        };
-
-        private: struct variables
-        {
-            variables(host_type const& host = nextgen::null, port_type port = nextgen::null, id_type id = nextgen::null, type_type type = nextgen::null, latency_type latency = nextgen::null) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
-            {
-
-            }
-
-            int32_t rating;
-            host_type host;
-            port_type port;
-            id_type id;
-            uint32_t type;
-            latency_type latency;
-            timer_type timer;
-            uint32_t state;
-            uint32_t check_delay;
-        };
-
-        NEXTGEN_ATTACH_SHARED_VARIABLES(proxy, variables);
-	};
-
     class proxy_checker
     {
         class job_type
@@ -77,18 +17,19 @@ namespace proxos
             public: typedef nextgen::network::service network_service_type;
             public: typedef nextgen::network::http_client client_type;
             public: typedef std::function<void()> callback_type;
-            public: typedef proxy proxy_type;
+            public: typedef nextgen::network::http_proxy proxy_type;
 
             private: struct variables
             {
-                variables(proxy_type proxy, network_service_type network_service, callback_type callback = 0) : complete(false), proxy(proxy), client(network_service), callback(callback)
+                variables(proxy_type proxy, network_service_type network_service, callback_type callback = 0) : complete(false), client(network_service), callback(callback)
                 {
+                    this->client->proxy = proxy;
+
                     if(callback == 0)
                         callback = [] { std::cout << "No callback." << std::endl; };
                 }
 
                 bool complete;
-                proxy_type proxy;
                 client_type client;
                 callback_type callback;
             };
@@ -96,7 +37,7 @@ namespace proxos
             NEXTGEN_ATTACH_SHARED_VARIABLES(job_type, variables);
         };
 
-        public: typedef proxos::proxy proxy_type;
+        public: typedef nextgen::network::http_proxy proxy_type;
         public: typedef std::list<job_type> job_list_type;
         public: typedef nextgen::network::service network_service_type;
         public: typedef uint32_t client_max_type;
@@ -126,7 +67,7 @@ namespace proxos
 
             return std::find_if(self->job_list.begin(), self->job_list.end(), [=](job_type& job) -> bool
             {
-                return id == job->proxy->id;
+                return id == job->client->proxy->id;
             });
         }
 
@@ -146,7 +87,8 @@ namespace proxos
         {
             auto self = *this;
 
-            self->judge_server.accept([=](client_type client)
+            self->judge_server.accept(
+            [=](client_type client)
             {
                 if(PROXOS_DEBUG_1)
                     std::cout << "[proxos:proxy_server] Proxy server (port 8080) accepted HTTP client." << std::endl;
@@ -163,10 +105,10 @@ namespace proxos
                     {
                         job_list_type::iterator i;
 
-                        if((i = self.find_job(to_int(r1->header_list["pid"]))) != self->job_list.end())
+                        if((i = self.find_job(nextgen::to_int(r1->header_list["pid"]))) != self->job_list.end())
                         // check if job wasnt removed because proxy server killed the connection before sending out packets
                         {
-                            auto proxy = (*i)->proxy;
+                            auto proxy = (*i)->client->proxy;
 
                             if(r1->raw_header_list.find("127.0.0.1") != std::string::npos
                             || r1->raw_header_list.find("174.1.157.98") != std::string::npos)
@@ -214,7 +156,7 @@ namespace proxos
                             });
                         }
                         // special case for initial confirmation we're hooked up correctly
-                        else if(to_int(r1->header_list["pid"]) == 0)
+                        else if(nextgen::to_int(r1->header_list["pid"]) == 0)
                         {
                             if(PROXOS_DEBUG_1)
                                 std::cout << "[proxos:proxy_server] got confirmation" << std::endl;
@@ -269,8 +211,9 @@ namespace proxos
                 std::cout << "[proxos:proxy_checker] Testing connection." << std::endl;
 
             nextgen::network::http_client client(self->network_service);
+            client->proxy = nextgen::network::http_proxy(self->host, self->port);
 
-            client.connect(self->host, self->port, nextgen::network::ipv4_address(self->host, self->port),
+            client.connect(self->host, self->port,
             [=]
             {
                 if(PROXOS_DEBUG_1)
@@ -279,13 +222,13 @@ namespace proxos
                 message_type r1;
 
                 r1->method = "GET";
-                r1->url = "http://" + self->host + ":" + to_string(self->port) + "/" + to_string(0);
+                r1->url = "http://" + self->host + ":" + nextgen::to_string(self->port) + "/" + nextgen::to_string(0);
 
                 r1->version = "1.1";
 
-                r1->header_list["Host"] = self->host + ":" + to_string(self->port);
+                r1->header_list["Host"] = self->host + ":" + nextgen::to_string(self->port);
                 r1->header_list["User-Agent"] = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)"; //"Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";//
-                r1->header_list["PID"] = to_string(0);
+                r1->header_list["PID"] = nextgen::to_string(0);
                 r1->header_list["Keep-Alive"] = "300";
                 r1->header_list["Connection"] = "keep-alive";
 
@@ -318,40 +261,28 @@ namespace proxos
             auto self = *this;
 
             auto client = job->client;
-            auto proxy = job->proxy;
+            auto proxy = job->client->proxy;
             auto callback = job->callback;
 
             if(PROXOS_DEBUG_1)
                 std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy->host << ":" << proxy->port << " (" << proxy->id << ")" << std::endl;
 
-            switch(proxy->type)
-            {
-                case proxy_type::types::transparent:
-                case proxy_type::types::distorting:
-                case proxy_type::types::anonymous:
-                    client->proxy = "http"; break;
-
-                case proxy_type::types::socks4: client->proxy = "socks4"; break;
-                case proxy_type::types::socks5: client->proxy = "socks5"; break;
-                case proxy_type::types::socks4n5: client->proxy = "socks4"; break;
-            }
-
-            client.connect(self->host, self->port, nextgen::network::ipv4_address(proxy->host, proxy->port),
+            client.connect(self->host, self->port,
             [=]
             {
                 if(PROXOS_DEBUG_1)
-                    std::cout << "[proxos:proxy_client] Connected to proxy " << proxy->host + ":" + to_string(proxy->port) << "." << std::endl;
+                    std::cout << "[proxos:proxy_client] Connected to proxy " << proxy->host + ":" + nextgen::to_string(proxy->port) << "." << std::endl;
 
                 message_type r1;
 
                 r1->method = "GET";
-                r1->url = "http://" + self->host + ":" + to_string(self->port) + "/" + to_string(proxy->id);
+                r1->url = "http://" + self->host + ":" + nextgen::to_string(self->port) + "/" + nextgen::to_string(proxy->id);
 
                 r1->version = "1.1";
 
-                r1->header_list["Host"] = self->host + ":" + to_string(self->port);
+                r1->header_list["Host"] = self->host + ":" + nextgen::to_string(self->port);
                 r1->header_list["User-Agent"] = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1) Gecko/20090624 Firefox/3.5 (.NET CLR 3.5.30729)"; //"Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.5) Gecko/20091109 Ubuntu/9.10 (karmic) Firefox/3.5.5";//
-                r1->header_list["PID"] = to_string(proxy->id);
+                r1->header_list["PID"] = nextgen::to_string(proxy->id);
                 r1->header_list["Keep-Alive"] = "300";
                 r1->header_list["Connection"] = "keep-alive";
 
@@ -395,7 +326,7 @@ namespace proxos
                                 std::cout << "goodish proxy - doesnt forward headers correctly - correct_headers = false" << std::endl;
                         }
 
-                        if(client->proxy == "socks4")
+                        if(proxy->type == proxy_type::types::socks4)
                         {
                             if(proxy->type != proxy_type::types::socks4)
                             // we don't want to check if it's also a socks5 proxy if we already know it's a socks4 proxy
@@ -416,10 +347,6 @@ namespace proxos
                                 return;*/
                             }
                         }
-                        else if(client->proxy == "socks5")
-                            proxy->type = proxy_type::types::socks5;
-                        else if(client->proxy == "socks4n5")
-                            proxy->type = proxy_type::types::socks4n5;
                     }
                     // proxy cannot receive data
                     else
@@ -439,61 +366,57 @@ namespace proxos
                     if(PROXOS_DEBUG_1)
                         std::cout << "[proxos:proxy_client] Client send/receive failure." << std::endl;
 
-                    if(client->proxy == "http")
-                    {
-                        if(job->proxy->type == proxy_type::types::transparent
-                        || job->proxy->type == proxy_type::types::distorting
-                        || job->proxy->type == proxy_type::types::anonymous
-                        || job->proxy->type == proxy_type::types::elite)
-                        // we know this could only be a http proxy
-                        {
-                            self.remove_job(proxy->id);
-
-                            if(callback != 0)
-                                callback();
-                        }
-                        // we know this isn't an http proxy, so check the next type
-                        {
-                            // wait 5 seconds to try and avoid spam filter
-                            nextgen::timeout(self->network_service, [=]()
-                            {
-                                client->proxy = "socks4";
-
-                                self.connect(job);
-                            }, 5000);
-                        }
-                    }
-                    else if(client->proxy == "socks4")
-                    {
-                        if(job->proxy->type == proxy::types::socks4)
-                        // we know this could only be a socks4 proxy
-                        {
-                            self.remove_job(proxy->id);
-
-                            if(callback != 0)
-                                callback();
-                        }
-                        else
-                        // we know this isn't an socks4 proxy, so check the next type
-                        {
-                            // wait 5 seconds to try and avoid spam filter
-
-                            nextgen::timeout(self->network_service, [=]()
-                            {
-                                client->proxy = "socks5";
-
-                                self.connect(job);
-                            }, 5000);
-                        }
-                    }
-                    else if(client->proxy == "socks5")
+                    if(proxy->type == proxy_type::types::transparent
+                    || proxy->type == proxy_type::types::distorting
+                    || proxy->type == proxy_type::types::anonymous
+                    || proxy->type == proxy_type::types::elite)
+                    // we know this could only be a http proxy
                     {
                         self.remove_job(proxy->id);
 
                         if(callback != 0)
                             callback();
                     }
-                    else if(client->proxy == "socks4n5")
+                    /*
+                    // we know this isn't an http proxy, so check the next type
+                    {
+                        // wait 5 seconds to try and avoid spam filter
+                        nextgen::timeout(self->network_service, [=]()
+                        {
+                            client->proxy = "socks4";
+
+                            self.connect(job);
+                        }, 5000);
+                    }*/
+                    else if(proxy->type == proxy_type::types::socks4)
+                    // we know this could only be a socks4 proxy
+                    {
+                        self.remove_job(proxy->id);
+
+                        if(callback != 0)
+                            callback();
+                    }
+                    /*
+                    else
+                    // we know this isn't an socks4 proxy, so check the next type
+                    {
+                        // wait 5 seconds to try and avoid spam filter
+
+                        nextgen::timeout(self->network_service, [=]()
+                        {
+                            proxy = "socks5";
+
+                            self.connect(job);
+                        }, 5000);
+                    }*/
+                    else if(proxy->type == proxy_type::types::socks5)
+                    {
+                        self.remove_job(proxy->id);
+
+                        if(callback != 0)
+                            callback();
+                    }
+                    else if(proxy->type == proxy_type::types::socks4n5)
                     {
                         self.remove_job(proxy->id);
 
@@ -573,14 +496,6 @@ namespace proxos
                     if(!job->complete)
                     {
                         job->complete = true;
-
-                        if(job->proxy->type == proxy::types::socks4
-                        || job->proxy->type == proxy::types::socks4n5)
-                            job->client->proxy = "socks4";
-                        else if(job->proxy->type == proxy::types::socks5)
-                            job->client->proxy = "socks5";
-                        else
-                            job->client->proxy = "http";
 
                         self.connect(job);
                     }

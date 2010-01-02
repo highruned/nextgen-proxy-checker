@@ -12,7 +12,6 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 				<Compiler>
-					<Add option="-O3" />
 					<Add option="-g" />
 				</Compiler>
 			</Target>
@@ -23,7 +22,7 @@
 				<Option compiler="gcc" />
 				<Option use_console_runner="0" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-O3" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -31,9 +30,6 @@
 			</Target>
 		</Build>
 		<Compiler>
-			<Add option="-O3" />
-			<Add option="-O2" />
-			<Add option="-O1" />
 			<Add option="-Wmain" />
 			<Add option="-Wfatal-errors" />
 			<Add option="-Wall" />
@@ -41,20 +37,27 @@
 			<Add option="-pthread" />
 			<Add option="-lz \ `/usr/local/mysql/bin/mysql_config --include --libmysqld-libs`" />
 			<Add directory="../../../src" />
+			<Add directory="../../../nextgenengine/src" />
 		</Compiler>
 		<Linker>
-			<Add option="-s" />
 			<Add option="-lpthread" />
 			<Add option="-ldl" />
 			<Add option="-lpq" />
 			<Add library="libstdc++-4.5.a" />
 			<Add library="libmysqlclient.a" />
-			<Add library="libboost_regex.a" />
 			<Add library="libboost_thread.a" />
 			<Add library="libcurl.a" />
 			<Add library="libboost_iostreams.a" />
 			<Add library="libz.a" />
+			<Add library="libboost_regex.a" />
 		</Linker>
+		<Unit filename="../../../nextgenengine/src/nextgen/common.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/content.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/content_gzip.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/database.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/math.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/network.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/social.h" />
 		<Unit filename="../../src/port_scanner.h" />
 		<Unit filename="../../src/proxy_checker.cpp" />
 		<Unit filename="../../src/proxy_checker.h" />

@@ -30,7 +30,9 @@ namespace youtube
 
     struct account_variables : public nextgen::social::basic_account_variables
     {
-        account_variables() : nextgen::social::basic_account_variables()
+        typedef nextgen::social::basic_account_variables base_type;
+
+        account_variables() : base_type()
         {
 
         }
@@ -50,15 +52,13 @@ namespace youtube
 
     struct client_variables
     {
-        client_variables(nextgen::network::service network_service) : network_service(network_service), client(network_service)
+        client_variables(nextgen::network::service network_service) : network_service(network_service), client(network_service), agent(nextgen::null)
         {
 
         }
 
         nextgen::network::service network_service;
         nextgen::network::http_client client;
-
-        proxos::proxy proxy;
         nextgen::network::http_agent agent;
     };
 
@@ -74,33 +74,8 @@ namespace youtube
             if(YOUTUBE_DEBUG_1)
                 std::cout << "user agent: " << self->agent->title << std::endl;
 
-            std::string host;
-            uint32_t port;
-
-            if(self->proxy != 0)
-            {
-                host = self->proxy->host;
-                port = self->proxy->port;
-
-                switch(self->proxy->type)
-                {
-                    case proxos::proxy::types::transparent: self->client->proxy = "http"; break;
-                    case proxos::proxy::types::distorting: self->client->proxy = "http"; break;
-                    case proxos::proxy::types::anonymous: self->client->proxy = "http"; break;
-                    case proxos::proxy::types::elite: self->client->proxy = "http"; break;
-                    case proxos::proxy::types::socks4: self->client->proxy = "socks4"; break;
-                    case proxos::proxy::types::socks5: self->client->proxy = "socks5"; break;
-                    case proxos::proxy::types::socks4n5: self->client->proxy = "socks4"; break;
-                    default: std::cout << "WTF" << std::endl;
-                }
-            }
-            else
-            {
-                host = "youtube.com";
-                port = 80;
-            }
-
-            self->client.connect("youtube.com", 80, nextgen::network::ipv4_address(host, port), [=]()
+            self->client.connect("www.youtube.com", 80,
+            [=]()
             {
                 if(YOUTUBE_DEBUG_1)
                     std::cout << "[proxos:youtube] Connected." << std::endl;
@@ -195,7 +170,7 @@ namespace youtube
                     self->client.send_and_receive(m3, [=](nextgen::network::http_message r3)
                     {
                         if((r3->status_code != 204)
-                        || to_int(r3->header_list["content-length"]) != 0)
+                        || nextgen::to_int(r3->header_list["content-length"]) != 0)
                         {
                             if(YOUTUBE_DEBUG_1)
                                 std::cout << "[proxos:youtube] Error receiving video download. " << r3->status_code << std::endl;
@@ -230,8 +205,8 @@ namespace youtube
         {
             auto self = *this;
 
-            self->client->proxy = "http";
-            self->client.connect("www.google.com", 80, nextgen::network::ipv4_address("85.185.25.250", 3128), //"219.93.178.162", 3128),
+            self->client->proxy = nextgen::network::http_proxy("85.185.25.250", 3128);
+            self->client.connect("www.google.com", 80, //"219.93.178.162", 3128),
             [=]
             {
                 nextgen::network::http_message m1;
@@ -243,8 +218,7 @@ namespace youtube
                 m1->header_list["Keep-Alive"] = "300";
                 m1->header_list["Connection"] = "keep-alive";
 
-                self->client.send_and_receive(m1,
-                [=](nextgen::network::http_message r1)
+                self->client.send_and_receive(m1, [=](nextgen::network::http_message r1)
                 {
                     if(r1->status_code != 200)
                     {
@@ -269,7 +243,7 @@ namespace youtube
 
                 if(f.is_open())
                 {
-                    find_and_replace(r1->content, "http", "hxxp");
+                    nextgen::find_and_replace(r1->content, "http", "hxxp");
                     f << r1->content;
                 }
 
@@ -305,18 +279,18 @@ std::cout << "password: " << a1->user->password << std::endl;
 
                         std::getline(std::cin, ktl);
 
-                        m1->content = "dsh=" + url_encode(dsh)
-                        + "&ktl=" + url_encode(ktl)
+                        m1->content = "dsh=" + nextgen::url_encode(dsh)
+                        + "&ktl=" + nextgen::url_encode(ktl)
                         + "&ktf=Email+Passwd+PasswdAgain+newaccountcaptcha+"
-                        + "&Email=" + url_encode(a1->user->email.to_string())
-                        + "&Passwd=" + url_encode(a1->user->password)
-                        + "&PasswdAgain=" + url_encode(a1->user->password)
+                        + "&Email=" + nextgen::url_encode(a1->user->email.to_string())
+                        + "&Passwd=" + nextgen::url_encode(a1->user->password)
+                        + "&PasswdAgain=" + nextgen::url_encode(a1->user->password)
                         + "&PersistentCookie=yes&rmShown=1&smhck=1&nshk=1&loc=" + location
-                        + "&newaccounttoken=" + url_encode(newaccounttoken)
-                        + "&newaccounturl=" + url_encode(newaccounturl)
-                        + "&newaccounttoken_audio=" + url_encode(newaccounttoken_audio)
-                        + "&newaccounturl_audio=" + url_encode(newaccounturl_audio)
-                        + "&newaccountcaptcha=" + url_encode(newaccountcaptcha)
+                        + "&newaccounttoken=" + nextgen::url_encode(newaccounttoken)
+                        + "&newaccounturl=" + nextgen::url_encode(newaccounturl)
+                        + "&newaccounttoken_audio=" + nextgen::url_encode(newaccounttoken_audio)
+                        + "&newaccounturl_audio=" + nextgen::url_encode(newaccounturl_audio)
+                        + "&newaccountcaptcha=" + nextgen::url_encode(newaccountcaptcha)
                         + "&privacy_policy_url=http%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fprivacy.html"
                         + "&requested_tos_location=" + location
                         + "&requested_tos_language=en&served_tos_location=" + location
@@ -327,11 +301,9 @@ std::cout << "password: " << a1->user->password << std::endl;
                         m1->method = "POST";
                         m1->url = "https://www.google.com/accounts/CreateAccount";
 
-                        self->client.send(m1,
-                        [=]
+                        self->client.send(m1, [=]
                         {
-                            a1->user->email.receive(
-                            [=](std::string content)
+                            a1->user->email.receive([=](std::string content)
                             {
                                 std::string c = nextgen::regex_single_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
 
@@ -362,8 +334,7 @@ std::cout << "password: " << a1->user->password << std::endl;
                                 });
                             });
 
-                            self->client.receive(
-                            [=](nextgen::network::http_message r3)
+                            self->client.receive([=](nextgen::network::http_message r3)
                             {
                                 std::cout << "create_account response: " << std::endl;
                     std::ofstream f;
@@ -371,7 +342,7 @@ std::cout << "password: " << a1->user->password << std::endl;
 
                     if(f.is_open())
                     {
-                        find_and_replace(r3->content, "http", "hxxp");
+                        nextgen::find_and_replace(r3->content, "http", "hxxp");
                         f << r3->content;
                     }
                                 self->client.disconnect();

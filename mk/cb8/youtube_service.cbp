@@ -57,6 +57,14 @@
 			<Add library="libcurl.a" />
 			<Add library="libz.a" />
 		</Linker>
+		<Unit filename="../../../nextgenengine/src/nextgen/common.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/content.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/content_gzip.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/database.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/math.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/network.h" />
+		<Unit filename="../../../nextgenengine/src/nextgen/social.h" />
+		<Unit filename="../../src/crawler.h" />
 		<Unit filename="../../src/proxy_checker.h" />
 		<Unit filename="../../src/youtube_service.cpp" />
 		<Unit filename="../../src/youtube_video.h" />

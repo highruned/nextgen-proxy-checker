@@ -75,9 +75,9 @@ void application::run(int argc, char* argv[])
 
             nextgen::social::person person;
 
-            person->id = to_int(r1["person_id"]);
-            person->country->id = to_int(r1["country_id"]);
-            person->gender->id = to_int(r1["gender_id"]);
+            person->id = nextgen::to_int(r1["person_id"]);
+            person->country->id = nextgen::to_int(r1["country_id"]);
+            person->gender->id = nextgen::to_int(r1["gender_id"]);
             person->postal_code = r1["person_postal_code"];
             person->birthday = boost::gregorian::from_simple_string(r1["person_birthday"].substr(0, 10));
 
@@ -94,13 +94,13 @@ void application::run(int argc, char* argv[])
             }
 
             {
-                auto r2 = *self->main_database.get_row("SELECT country_code FROM countries WHERE country_id = " + to_string(person->country->id) + " LIMIT 1");
+                auto r2 = *self->main_database.get_row("SELECT country_code FROM countries WHERE country_id = " + nextgen::to_string(person->country->id) + " LIMIT 1");
 
                 person->country->code = r2["country_code"];
             }
 
             {
-                auto r2 = *self->main_database.get_row("SELECT gender_code FROM genders WHERE gender_id = " + to_string(person->gender->id) + " LIMIT 1");
+                auto r2 = *self->main_database.get_row("SELECT gender_code FROM genders WHERE gender_id = " + nextgen::to_string(person->gender->id) + " LIMIT 1");
 
                 person->gender->code = r2["gender_code"];
             }
@@ -141,17 +141,17 @@ void application::run(int argc, char* argv[])
                 if(YOUTUBE_DEBUG_1)
                     std::cout << r1["proxy_host"] << " " << r1["proxy_port"] << std::endl;
 
-                proxos::proxy proxy;
+                nextgen::network::http_proxy proxy;
                 proxy->host = r1["proxy_host"];
-                proxy->port = to_int(r1["proxy_port"]);
-                proxy->type = to_int(r1["type_id"]);
+                proxy->port = nextgen::to_int(r1["proxy_port"]);
+                proxy->type = nextgen::to_int(r1["type_id"]);
 
                 auto r2 = *agent_list[nextgen::random(0, (int)agent_list.size()-1)];
 
                 nextgen::network::http_agent agent(r2["agent_title"]);
 
                 youtube::client c1(self->network_service);
-                c1->proxy = proxy;
+                c1->client->proxy = proxy;
                 c1->agent = agent;
 
                 c1.view_video(video, 3);
@@ -170,20 +170,20 @@ void application::run(int argc, char* argv[])
 
             switch(nextgen::random(1, 3))
             {
-                case 1: a1->user->username = a1->person->name->first + to_string(id); break;
-                case 2: a1->user->username = a1->person->name->last + to_string(id); break;
-                case 3: a1->user->username = a1->person->name->first + to_string(id) + "x"; break;
+                case 1: a1->user->username = a1->person->name->first + nextgen::to_string(id); break;
+                case 2: a1->user->username = a1->person->name->last + nextgen::to_string(id); break;
+                case 3: a1->user->username = a1->person->name->first + nextgen::to_string(id) + "x"; break;
                 //case 4: a1->user->username = a1->person->name->first + "_" + to_string(id) + "x"; break;
                 //case 5: a1->user->username = a1->person->name->first + "_" + to_string(id); break;
                 // nicknames
             }
 
-            a1->user->password = reverse_string(a1->user->username);
+            a1->user->password = nextgen::reverse_string(a1->user->username);
             a1->user->email = nextgen::social::email(self->mail_server);
             a1->user->email->user = a1->user->username;
             a1->user->email->host = "69labs.com";//social.0-x.pl";
 
-            std::string q1("SELECT * FROM accounts WHERE accounts.person_id = " + to_string(a1->person->id) + " LIMIT 1");
+            std::string q1("SELECT * FROM accounts WHERE accounts.person_id = " + nextgen::to_string(a1->person->id) + " LIMIT 1");
 
             std::cout << "Executing SQL: " << q1 << std::endl;
 
@@ -196,7 +196,7 @@ void application::run(int argc, char* argv[])
                 c1.create_account(a1,
                 [=]
                 {
-                    std::string q2("INSERT INTO accounts SET account_type_id = " + to_string(a1->type) + ", account_username = \"" + a1->user->username + "\", account_email = \"" + a1->user->email.to_string() + "\", account_password = \"" + a1->user->password + "\", person_id = " + to_string(a1->person->id));
+                    std::string q2("INSERT INTO accounts SET account_type_id = " + nextgen::to_string(a1->type) + ", account_username = \"" + a1->user->username + "\", account_email = \"" + a1->user->email.to_string() + "\", account_password = \"" + a1->user->password + "\", person_id = " + nextgen::to_string(a1->person->id));
 
                     std::cout << "Executing SQL: " << q2 << std::endl;
 

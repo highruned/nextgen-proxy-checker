@@ -2,125 +2,15 @@
 
 #include "proxy_checker.h"
 
-class address
-{
-    union v4
-    {
-        int value;
-
-        struct
-        {
-            uint8_t first;
-            uint8_t second;
-            uint8_t third;
-            uint8_t forth;
-        };
-    };
-
-    public: v4 value;
-    public: bool valid;
-
-    public: bool is_valid()
-    {
-        return this->valid;
-    }
-
-    public: void from_string(std::string const& s)
-    {
-        boost::regex_error paren(boost::regex_constants::error_paren);
-
-        try
-        {
-            boost::match_results<std::string::const_iterator> what;
-            boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
-
-            std::string::const_iterator start = s.begin();
-            std::string::const_iterator end = s.end();
-
-            if(boost::regex_search(start, end, what, boost::regex("^([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)$"), flags))
-            {
-                auto first = boost::lexical_cast<uint32_t>(what[1]);
-                auto second = boost::lexical_cast<uint32_t>(what[2]);
-                auto third = boost::lexical_cast<uint32_t>(what[3]);
-                auto forth = boost::lexical_cast<uint32_t>(what[4]);
-
-                if(!(first >= 0 && first <= 255
-                && second >= 0 && second <= 255
-                && third >= 0 && third <= 255
-                && forth >= 0 && forth <= 255))
-                {
-                    this->valid = false;
-
-                    return;
-                }
-
-                this->value.first = boost::numeric_cast<uint8_t>(first);
-                this->value.second = boost::numeric_cast<uint8_t>(second);
-                this->value.third = boost::numeric_cast<uint8_t>(third);
-                this->value.forth = boost::numeric_cast<uint8_t>(forth);
-            }
-            else
-            {
-                this->valid = false;
-
-                return;
-            }
-        }
-        catch(boost::regex_error const& e)
-        {
-            std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
-
-            this->valid = false;
-
-            return;
-        }
-    }
-
-    public: address(uint32_t address) : valid(true)
-    {
-        this->value.value = address;
-    }
-
-    public: address(std::string const& address) : valid(true)
-    {
-        this->from_string(address);
-    }
-};
-
-class address_range
-{
-    public: address lower;
-    public: address upper;
-
-    public: bool is_within_range(address& a)
-    {
-        if(a.value.first <= this->upper.value.first && a.value.first >= this->lower.value.first
-        && a.value.second <= this->upper.value.second && a.value.second >= this->lower.value.second
-        && a.value.third <= this->upper.value.third && a.value.third >= this->lower.value.third
-        && a.value.forth <= this->upper.value.forth && a.value.forth >= this->lower.value.forth)
-            return true;
-
-        return false;
-    }
-
-    public: address_range(address&& lower, address&& upper) : lower(lower), upper(upper)
-    {
-
-    }
-
-    public: address_range(std::string const& lower, std::string const& upper) : lower(lower), upper(upper)
-    {
-
-    }
-};
-
 class application : public nextgen::singleton<application>
 {
-    public: void check_proxy(proxos::proxy proxy, std::function<void()> callback = 0) const
+    typedef nextgen::network::http_proxy proxy_type;
+
+    public: void check_proxy(proxy_type proxy, std::function<void()> callback = 0) const
     {
         auto self = *this;
 
-        address a(proxy->host);
+        nextgen::network::address a(proxy->host);
 
         if(!a.is_valid())
         {
@@ -128,7 +18,7 @@ class application : public nextgen::singleton<application>
 
             proxy->check_delay = 365 * 24 * 60 * 60;
 
-            std::string query = "UPDATE proxies SET state_id = " + to_string(proxos::proxy::states::invalid) + ", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
+            std::string query = "UPDATE proxies SET state_id = " + nextgen::to_string(proxy_type::states::invalid) + ", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + nextgen::to_string(proxy->check_delay) + " WHERE proxy_id = " + nextgen::to_string(proxy->id) + " LIMIT 1";
 
             self->proxy_database.query(query);
 
@@ -145,7 +35,7 @@ class application : public nextgen::singleton<application>
 
             proxy->check_delay = 365 * 24 * 60 * 60;
 
-            std::string query = "UPDATE proxies SET state_id = " + to_string(proxos::proxy::states::banned) + ", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + to_string(proxy->check_delay) + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
+            std::string query = "UPDATE proxies SET state_id = " + nextgen::to_string(proxy_type::states::banned) + ", proxy_latency = 0, proxy_last_checked = NOW(), proxy_check_delay = " + nextgen::to_string(proxy->check_delay) + " WHERE proxy_id = " + nextgen::to_string(proxy->id) + " LIMIT 1";
 
             self->proxy_database.query(query);
 
@@ -157,53 +47,53 @@ class application : public nextgen::singleton<application>
 
         self->proxy_checker.check_proxy(proxy, [=]
         {
-            if(proxy->type == proxos::proxy::types::none)
+            if(proxy->type == proxy_type::types::none)
             {
                 proxy->check_delay = 1 * 24 * 60 * 60;
                 proxy->rating -= 1;
             }
-            else if(proxy->type == proxos::proxy::types::transparent)
+            else if(proxy->type == proxy_type::types::transparent)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-            else if(proxy->type == proxos::proxy::types::anonymous)
+            else if(proxy->type == proxy_type::types::anonymous)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-            else if(proxy->type == proxos::proxy::types::elite)
+            else if(proxy->type == proxy_type::types::elite)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-               else if(proxy->type == proxos::proxy::types::socks4)
+               else if(proxy->type == proxy_type::types::socks4)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
-            else if(proxy->type == proxos::proxy::types::socks5)
+            else if(proxy->type == proxy_type::types::socks5)
             {
                 proxy->check_delay = 6 * 60 * 60;
                 proxy->rating += 1;
             }
 
-            if(proxy->state == proxos::proxy::states::codeen)
+            if(proxy->state == proxy_type::states::codeen)
             {
                 proxy->check_delay = 7 * 24 * 60 * 60;
             }
 
             // todo(daemn) check mysql table check table proxies.proxies; for status OK
             {
-                std::string query = "UPDATE proxies SET type_id = " + to_string(proxy->type)
-                + ", proxy_latency = " + to_string(proxy->latency)
-                + ", state_id = " + to_string(proxy->state)
-                + ", proxy_rating = " + to_string(proxy->rating)
-                + ", proxy_last_checked = " + to_string(time(0))
-                + ", proxy_check_delay = " + to_string(proxy->check_delay)
-                + " WHERE proxy_id = " + to_string(proxy->id) + " LIMIT 1";
+                std::string query = "UPDATE proxies SET type_id = " + nextgen::to_string(proxy->type)
+                + ", proxy_latency = " + nextgen::to_string(proxy->latency)
+                + ", state_id = " + nextgen::to_string(proxy->state)
+                + ", proxy_rating = " + nextgen::to_string(proxy->rating)
+                + ", proxy_last_checked = " + nextgen::to_string(time(0))
+                + ", proxy_check_delay = " + nextgen::to_string(proxy->check_delay)
+                + " WHERE proxy_id = " + nextgen::to_string(proxy->id) + " LIMIT 1";
 
-                std::cout << query << " after " << to_string(proxy->latency) << " seconds. " << std::endl;
+                std::cout << query << " after " << nextgen::to_string(proxy->latency) << " seconds. " << std::endl;
 
                 std::cout << "state: " << proxy->state << std::endl;
 
@@ -215,7 +105,7 @@ class application : public nextgen::singleton<application>
         });
     }
 
-    public: bool proxy_is_banned(address& a) const
+    public: bool proxy_is_banned(nextgen::network::address& a) const
     {
         auto self = *this;
 
@@ -240,7 +130,7 @@ class application : public nextgen::singleton<application>
         nextgen::network::service network_service;
         nextgen::database::link proxy_database;
         proxos::proxy_checker proxy_checker;
-        std::vector<address_range> banlist;
+        std::vector<nextgen::network::address_range> banlist;
     };
 
     NEXTGEN_ATTACH_SHARED_VARIABLES(application, variables);
@@ -269,7 +159,7 @@ void application::run(int argc, char* argv[])
 
         boost::split(ip, host, boost::is_any_of("-"));
 
-        address_range s(ip[0], ip[1]);
+        nextgen::network::address_range s(ip[0], ip[1]);
 
         self->banlist.push_back(s);
     });
@@ -282,10 +172,11 @@ void application::run(int argc, char* argv[])
 
         std::string query("SELECT proxy_host, state_id, type_id, proxy_port, proxy_id, proxy_rating "
         "FROM proxies "
-        "WHERE proxy_last_checked < (" + to_string(time(0)) + " - proxy_check_delay) "
-        "AND state_id != " +  to_string(proxos::proxy::states::banned) + " AND state_id != " + to_string(proxos::proxy::states::invalid) + " AND state_id != " + to_string(proxos::proxy::states::codeen) + " "
+        "WHERE proxy_last_checked < " + nextgen::to_string(time(0)) + " "
+        "AND proxy_last_checked < (" + nextgen::to_string(time(0)) + " - proxy_check_delay) "
+        "AND state_id != " +  nextgen::to_string(proxy_type::states::banned) + " AND state_id != " + nextgen::to_string(proxy_type::states::invalid) + " AND state_id != " + nextgen::to_string(proxy_type::states::codeen) + " "
         "ORDER BY proxy_id "
-        "LIMIT " + to_string(start) + ", " + to_string(amount));
+        "LIMIT " + nextgen::to_string(start) + ", " + nextgen::to_string(amount));
 
         std::cout << query << std::endl;
 
@@ -295,13 +186,13 @@ void application::run(int argc, char* argv[])
         {
             auto r1 = *row;
 
-            proxos::proxy proxy;
+            proxy_type proxy;
             proxy->host = r1["proxy_host"];
-            proxy->port = to_int(r1["proxy_port"]);
-            proxy->id = to_int(r1["proxy_id"]);
-            proxy->rating = to_int(r1["proxy_rating"]);
-            proxy->state = to_int(r1["state_id"]);
-            proxy->type = to_int(r1["type_id"]);
+            proxy->port = nextgen::to_int(r1["proxy_port"]);
+            proxy->id = nextgen::to_int(r1["proxy_id"]);
+            proxy->rating = nextgen::to_int(r1["proxy_rating"]);
+            proxy->state = nextgen::to_int(r1["state_id"]);
+            proxy->type = nextgen::to_int(r1["type_id"]);
 
             // check the proxy against banlist
             self.check_proxy(proxy);
@@ -325,9 +216,9 @@ void application::run(int argc, char* argv[])
 
         if(command == "check_proxy")
         {
-            proxos::proxy proxy;
+            proxy_type proxy;
             proxy->host = argv[2];
-            proxy->port = to_int(argv[3]);
+            proxy->port = nextgen::to_int(argv[3]);
 
             self.check_proxy(proxy);
         }
@@ -341,12 +232,12 @@ void application::run(int argc, char* argv[])
 
             auto r1 = *self->proxy_database.get_row(query);
 
-            proxos::proxy proxy;
+            proxy_type proxy;
             proxy->host = r1["proxy_host"];
-            proxy->port = to_int(r1["proxy_port"]);
-            proxy->rating = to_int(r1["proxy_rating"]);
-            proxy->state = to_int(r1["state_id"]);
-            proxy->type = to_int(r1["type_id"]);
+            proxy->port = nextgen::to_int(r1["proxy_port"]);
+            proxy->rating = nextgen::to_int(r1["proxy_rating"]);
+            proxy->state = nextgen::to_int(r1["state_id"]);
+            proxy->type = nextgen::to_int(r1["type_id"]);
 
             self.check_proxy(proxy);
         }
@@ -360,12 +251,17 @@ void application::run(int argc, char* argv[])
 
     while(true)
     {
-        if(timer.stop() > 1)
+        if(timer.stop() > 10)
         {
             std::cout << "[proxos:application:run] Updating services..." << std::endl;
             std::cout << "C" << self->proxy_checker->job_list.size() << std::endl;
             std::cout << "D" << self->proxy_checker->judge_server->client_list.size() << std::endl;
             std::cout << "descriptors: " << nextgen::get_process_total_descriptors(nextgen::get_current_process_id()) << std::endl;
+
+            for(nextgen::object_registry_type::iterator i = nextgen::object_registry.begin(), l = nextgen::object_registry.end(); i != l; ++i)
+            {
+                std::cout << (*i).first << ": " << (*i).second << std::endl;
+            }
 
             timer.start();
         }
@@ -373,7 +269,7 @@ void application::run(int argc, char* argv[])
         self->proxy_checker.update();
         self->network_service.update();
 
-        nextgen::sleep(0.01);
+        nextgen::sleep(0.05);
     }
 }
 
