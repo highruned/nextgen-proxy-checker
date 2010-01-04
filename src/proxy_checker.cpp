@@ -105,7 +105,7 @@ class application : public nextgen::singleton<application>
         });
     }
 
-    public: bool proxy_is_banned(nextgen::network::address& a) const
+    public: bool proxy_is_banned(nextgen::network::address a) const
     {
         auto self = *this;
 
@@ -170,12 +170,14 @@ void application::run(int argc, char* argv[])
 
         static uint32_t start = 0;
 
-        std::string query("SELECT proxy_host, state_id, type_id, proxy_port, proxy_id, proxy_rating "
+        std::string query("SELECT * "
         "FROM proxies "
-        "WHERE proxy_last_checked < " + nextgen::to_string(time(0)) + " "
+        "WHERE state_id != " + nextgen::to_string(proxy_type::states::codeen) + " "
+        "AND state_id != " + nextgen::to_string(proxy_type::states::banned) + " "
+        "AND state_id != " + nextgen::to_string(proxy_type::states::invalid) + " "
+        "AND proxy_last_checked < " + nextgen::to_string(time(0)) + " "
         "AND proxy_last_checked < (" + nextgen::to_string(time(0)) + " - proxy_check_delay) "
-        "AND state_id != " +  nextgen::to_string(proxy_type::states::banned) + " AND state_id != " + nextgen::to_string(proxy_type::states::invalid) + " AND state_id != " + nextgen::to_string(proxy_type::states::codeen) + " "
-        "ORDER BY proxy_id "
+        "ORDER BY proxy_rating DESC "
         "LIMIT " + nextgen::to_string(start) + ", " + nextgen::to_string(amount));
 
         std::cout << query << std::endl;

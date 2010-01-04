@@ -113,7 +113,7 @@ namespace proxos
                             if(r1->raw_header_list.find("127.0.0.1") != std::string::npos
                             || r1->raw_header_list.find("174.1.157.98") != std::string::npos)
                                 proxy->type = proxy_type::types::transparent;
-                            else if(r1->header_list.find("Via") != r1->header_list.end()
+                            else if(r1->header_list.find("via") != r1->header_list.end()
                             || r1->header_list.find("x-forwarded-for") != r1->header_list.end()
                             || r1->header_list.find("forwarded") != r1->header_list.end()
                             || r1->header_list.find("client-ip") != r1->header_list.end()
@@ -267,6 +267,8 @@ namespace proxos
             if(PROXOS_DEBUG_1)
                 std::cout << "[proxos:proxy_client] Attempting to connect to " << proxy->host << ":" << proxy->port << " (" << proxy->id << ")" << std::endl;
 
+            proxy->timer.start();
+
             client.connect(self->host, self->port,
             [=]
             {
@@ -286,8 +288,6 @@ namespace proxos
                 r1->header_list["Keep-Alive"] = "300";
                 r1->header_list["Connection"] = "keep-alive";
 
-                proxy->timer.start();
-
                 client.send_and_receive(r1,
                 [=](message_type r2)
                 {
@@ -298,8 +298,6 @@ namespace proxos
                         std::cout << r2->raw_header_list << std::endl;
                         std::cout << r2->content << std::endl;
                     }
-
-                    proxy->latency = proxy->timer.stop();
 
                     if(r2->content.find("CoDeeN") != std::string::npos
                     || r2->content.find("PlanetLab") != std::string::npos)
@@ -328,11 +326,6 @@ namespace proxos
 
                         if(proxy->type == proxy_type::types::socks4)
                         {
-                            if(proxy->type != proxy_type::types::socks4)
-                            // we don't want to check if it's also a socks5 proxy if we already know it's a socks4 proxy
-                            {
-                                proxy->type = proxy_type::types::socks4;
-
                                 // we want to know if this can also be used for socks5
 
                                 // wait 5 seconds to try and avoid spam filter
@@ -345,7 +338,6 @@ namespace proxos
                                 }, 5000);
 
                                 return;*/
-                            }
                         }
                     }
                     // proxy cannot receive data
@@ -353,6 +345,8 @@ namespace proxos
                     {
                         proxy->state = proxy_type::states::bad_return_data;
                     }
+
+                    proxy->latency = proxy->timer.stop();
 
                     client.disconnect();
 
@@ -366,49 +360,34 @@ namespace proxos
                     if(PROXOS_DEBUG_1)
                         std::cout << "[proxos:proxy_client] Client send/receive failure." << std::endl;
 
+                    proxy->latency = proxy->timer.stop();
+
                     if(proxy->type == proxy_type::types::transparent
                     || proxy->type == proxy_type::types::distorting
                     || proxy->type == proxy_type::types::anonymous
                     || proxy->type == proxy_type::types::elite)
-                    // we know this could only be a http proxy
-                    {
-                        self.remove_job(proxy->id);
-
-                        if(callback != 0)
-                            callback();
-                    }
-                    /*
                     // we know this isn't an http proxy, so check the next type
                     {
                         // wait 5 seconds to try and avoid spam filter
                         nextgen::timeout(self->network_service, [=]()
                         {
-                            client->proxy = "socks4";
+                            proxy->type = proxy_type::types::socks4;
 
                             self.connect(job);
                         }, 5000);
-                    }*/
-                    else if(proxy->type == proxy_type::types::socks4)
-                    // we know this could only be a socks4 proxy
-                    {
-                        self.remove_job(proxy->id);
-
-                        if(callback != 0)
-                            callback();
                     }
-                    /*
-                    else
+                    else if(proxy->type == proxy_type::types::socks4)
                     // we know this isn't an socks4 proxy, so check the next type
                     {
                         // wait 5 seconds to try and avoid spam filter
 
                         nextgen::timeout(self->network_service, [=]()
                         {
-                            proxy = "socks5";
+                            proxy->type = proxy_type::types::socks5;
 
                             self.connect(job);
                         }, 5000);
-                    }*/
+                    }
                     else if(proxy->type == proxy_type::types::socks5)
                     {
                         self.remove_job(proxy->id);
@@ -416,15 +395,9 @@ namespace proxos
                         if(callback != 0)
                             callback();
                     }
-                    else if(proxy->type == proxy_type::types::socks4n5)
-                    {
-                        self.remove_job(proxy->id);
-
-                        if(callback != 0)
-                            callback();
-                    }
                     else
                     {
+                        proxy->type = proxy_type::types::none;
                         proxy->state = proxy_type::states::cannot_send;
 
                         self.remove_job(proxy->id);
@@ -437,6 +410,8 @@ namespace proxos
             [=]
             {
                 proxy->state = proxy_type::states::cannot_connect;
+
+                proxy->latency = proxy->timer.stop();
 
                 self.remove_job(proxy->id);
 

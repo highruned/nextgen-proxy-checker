@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_layout_file>
+	<ActiveTarget name="Linux Debug" />
+	<File name="../../../nextgenengine/src/nextgen/common.h" open="0" top="0" tabpos="0">
+		<Cursor position="6736" topLine="188" />
+	</File>
+	<File name="../../../nextgenengine/src/nextgen/network.h" open="1" top="0" tabpos="0">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="../../src/stress_tester.cpp" open="0" top="0" tabpos="0">
+		<Cursor position="2482" topLine="60" />
+	</File>
+</CodeBlocks_layout_file>
