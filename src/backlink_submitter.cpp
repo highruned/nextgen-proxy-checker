@@ -49,9 +49,9 @@ void application::run(int argc, char* argv[])
 
                 nextgen::find_and_replace(path, "[URL]", nextgen::url_encode(site));
 
-                std::cout << "path: " << path << std::endl;
-                std::cout << "host: " << host << std::endl;
-                std::cout << "backlink: " << backlink << std::endl;
+                //std::cout << "path: " << path << std::endl;
+                //std::cout << "host: " << host << std::endl;
+                //std::cout << "backlink: " << backlink << std::endl;
 
                 client.connect(host, 80,
                 [=]
