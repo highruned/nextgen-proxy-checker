@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_workspace_file>
 	<Workspace title="Workspace">
-		<Project filename="youtube_service.cbp" />
+		<Project filename="youtube_service.cbp" active="1" />
 		<Project filename="proxy_tool.cbp" />
-		<Project filename="proxy_checker.cbp" active="1" />
+		<Project filename="proxy_checker.cbp" />
 		<Project filename="backlink_submitter.cbp" />
-		<Project filename="../../../../temp/Test/Test.cbp" />
 		<Project filename="../../../nextgenengine/mk/cb8/nextgen_engine.cbp" />
 		<Project filename="stress_tester.cbp" />
 	</Workspace>

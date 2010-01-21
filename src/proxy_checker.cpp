@@ -141,7 +141,7 @@ void application::run(int argc, char* argv[])
 {
     auto self = *this;
 
-    self->proxy_database.connect("localhost", "root", "swoosh", "proxies");
+    self->proxy_database.connect("174.1.157.98", "root", "swoosh", "proxies");
 
     std::string query("SELECT * FROM banlist"); //ORDER BY proxy_rating DESC
 
