@@ -1,4 +1,4 @@
-#define FD_SETSIZE 65535
+#define FD_SETSIZE 32768
 
 #include "youtube_video.h"
 
@@ -27,8 +27,8 @@ void application::run(int argc, char* argv[])
 {
     auto self = *this;
 
-    self->main_database.connect("174.1.157.98", "root", "swoosh", "main");
-    self->proxy_database.connect("174.1.157.98", "root", "swoosh", "proxies");
+    self->main_database.connect("localhost", "root", "swoosh", "main");
+    self->proxy_database.connect("localhost", "root", "swoosh", "proxies");
 
     self->mail_server.accept(
     [=](nextgen::network::smtp_client c1)
@@ -47,7 +47,7 @@ void application::run(int argc, char* argv[])
 
                 std::string email = nextgen::regex_single_match("To: (.+?)\r\n", r1->content);
 
-                if(email == "null")
+                if(email == nextgen::null_str)
                 {
                     std::cout << "[youtube] error: null email" << std::endl;
 

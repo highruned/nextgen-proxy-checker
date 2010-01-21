@@ -17,17 +17,12 @@ class application : public nextgen::singleton<application>
 
         }
 
-        ~variables()
-        {
-
-        }
-
         nextgen::network::service network_service;
         nextgen::content::service content_service;
         nextgen::database::link proxy_database;
     };
 
-    NEXTGEN_SHARED_DATA(application, variables);
+    NEXTGEN_ATTACH_SHARED_VARIABLES(application, variables);
 };
 
 void application::run(int argc, char* argv[])

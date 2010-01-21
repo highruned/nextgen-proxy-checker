@@ -238,14 +238,14 @@ namespace youtube
                     std::string newaccounturl_audio = nextgen::regex_single_match("id=\"newaccounturl_audio\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
                     std::string location = nextgen::regex_single_match("value=\"([^\"<>]+)\"[^<>]+selected", r1->content);
 
-                std::ofstream f;
-                f.open("google1.html", std::ios::out | std::ios::binary);
+std::ofstream f;
+f.open("google1.html", std::ios::out | std::ios::binary);
 
-                if(f.is_open())
-                {
-                    nextgen::find_and_replace(r1->content, "http", "hxxp");
-                    f << r1->content;
-                }
+if(f.is_open())
+{
+    nextgen::find_and_replace(r1->content, "http", "hxxp");
+    f << r1->content;
+}
 
 std::cout << "email: " << a1->user->email.to_string() << std::endl;
 std::cout << "password: " << a1->user->password << std::endl;
@@ -262,14 +262,14 @@ std::cout << "password: " << a1->user->password << std::endl;
                     {
                         std::cout << "got captcha" << std::endl;
 
-                std::ofstream f;
-                f.open("captcha.jpeg", std::ios::out | std::ios::binary);
+std::ofstream f;
+f.open("captcha.jpeg", std::ios::out | std::ios::binary);
 
-                if(f.is_open())
-                {
+if(f.is_open())
+{
 
-                    f << r2->content;
-                }
+    f << r2->content;
+}
 
                         std::string newaccountcaptcha;
 
@@ -337,19 +337,19 @@ std::cout << "password: " << a1->user->password << std::endl;
                             self->client.receive([=](nextgen::network::http_message r3)
                             {
                                 std::cout << "create_account response: " << std::endl;
-                    std::ofstream f;
-                    f.open("google2.html", std::ios::out | std::ios::binary);
+std::ofstream f;
+f.open("google2.html", std::ios::out | std::ios::binary);
 
-                    if(f.is_open())
-                    {
-                        nextgen::find_and_replace(r3->content, "http", "hxxp");
-                        f << r3->content;
-                    }
+if(f.is_open())
+{
+    nextgen::find_and_replace(r3->content, "http", "hxxp");
+    f << r3->content;
+}
                                 self->client.disconnect();
                             });
                         });
                     });
-                    });
+                });
             });
         }
 
