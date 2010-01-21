@@ -272,17 +272,17 @@
 1262258354 /home/daemn/projects/nextgenengine/src/nextgen/social.h
 	"common.h"
 
-1263890114 source:/home/user/projects/proxos/src/youtube_service.cpp
+1264051576 source:/home/user/projects/proxos/src/youtube_service.cpp
 	"youtube_video.h"
 
-1263890114 /home/user/projects/proxos/src/youtube_video.h
+1264044137 /home/user/projects/proxos/src/youtube_video.h
 	"nextgen/common.h"
 	"nextgen/network.h"
 	"nextgen/database.h"
 	"nextgen/social.h"
 	"proxy_checker.h"
 
-1263889664 /home/user/projects/nextgenengine/src/nextgen/common.h
+1264052041 /home/user/projects/nextgenengine/src/nextgen/common.h
 	<cstddef>
 	<cstdio>
 	<cmath>
@@ -314,8 +314,8 @@
 	<stdio.h>
 	<netinet/in.h>
 	<netdb.h>
-	<asio.hpp>
-	<asio/ssl.hpp>
+	<boost/asio.hpp>
+	<boost/asio/ssl.hpp>
 	<boost/iostreams/stream.hpp>
 	<boost/config.hpp>
 	<boost/iostreams/categories.hpp>
@@ -364,7 +364,7 @@
 1263889664 /home/user/projects/nextgenengine/src/nextgen/content_gzip.h
 	<zlib.h>
 
-1263889664 /home/user/projects/nextgenengine/src/nextgen/network.h
+1264052091 /home/user/projects/nextgenengine/src/nextgen/network.h
 	"common.h"
 
 1263889664 /home/user/projects/nextgenengine/src/nextgen/database.h
