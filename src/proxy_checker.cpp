@@ -164,54 +164,6 @@ void application::run(int argc, char* argv[])
         self->banlist.push_back(s);
     });
 
-    auto refill = [=](size_t amount)
-    {
-        std::cout << "Attempting to load " << amount << " proxies..." << std::endl;
-
-        static uint32_t start = 0;
-
-        std::string query("SELECT * "
-        "FROM proxies "
-        "WHERE state_id != " + nextgen::to_string(proxy_type::states::codeen) + " "
-        "AND state_id != " + nextgen::to_string(proxy_type::states::banned) + " "
-        "AND state_id != " + nextgen::to_string(proxy_type::states::invalid) + " "
-        "AND proxy_last_checked < " + nextgen::to_string(time(0)) + " "
-        "AND proxy_last_checked < (" + nextgen::to_string(time(0)) + " - proxy_check_delay) "
-        "ORDER BY proxy_rating DESC "
-        "LIMIT " + nextgen::to_string(start) + ", " + nextgen::to_string(amount));
-
-        std::cout << query << std::endl;
-
-        auto list = *self->proxy_database.get_row_list(query);
-
-        std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
-        {
-            auto r1 = *row;
-
-            proxy_type proxy;
-            proxy->host = r1["proxy_host"];
-            proxy->port = nextgen::to_int(r1["proxy_port"]);
-            proxy->id = nextgen::to_int(r1["proxy_id"]);
-            proxy->rating = nextgen::to_int(r1["proxy_rating"]);
-            proxy->state = nextgen::to_int(r1["state_id"]);
-            proxy->type = nextgen::to_int(r1["type_id"]);
-
-            // check the proxy against banlist
-            self.check_proxy(proxy);
-        });
-
-        start += amount;
-
-        if(list.size() < amount)
-        // we've hit the end of the proxy list, loop back around and check for changes
-        {
-            start = 0;
-            amount = list.size();
-        }
-
-        std::cout << "Loaded " << amount << " proxies." << std::endl;
-    };
-
     if(argc > 1)
     {
         std::string command = argv[1];
@@ -246,7 +198,53 @@ void application::run(int argc, char* argv[])
     }
     else
     {
-        self->proxy_checker->refill_event += refill;
+        self->proxy_checker->refill_event += [=](size_t amount)
+        {
+            std::cout << "Attempting to load " << amount << " proxies..." << std::endl;
+
+            static uint32_t start = 0;
+
+            std::string query("SELECT * "
+            "FROM proxies "
+            "WHERE state_id != " + nextgen::to_string(proxy_type::states::codeen) + " "
+            "AND state_id != " + nextgen::to_string(proxy_type::states::banned) + " "
+            "AND state_id != " + nextgen::to_string(proxy_type::states::invalid) + " "
+            "AND proxy_last_checked < " + nextgen::to_string(time(0)) + " "
+            "AND proxy_last_checked < (" + nextgen::to_string(time(0)) + " - proxy_check_delay) "
+            "ORDER BY proxy_rating DESC "
+            "LIMIT " + nextgen::to_string(start) + ", " + nextgen::to_string(amount));
+
+            std::cout << query << std::endl;
+
+            auto list = *self->proxy_database.get_row_list(query);
+
+            std::for_each(list.begin(), list.end(), [=](nextgen::database::row& row)
+            {
+                auto r1 = *row;
+
+                proxy_type proxy;
+                proxy->host = r1["proxy_host"];
+                proxy->port = nextgen::to_int(r1["proxy_port"]);
+                proxy->id = nextgen::to_int(r1["proxy_id"]);
+                proxy->rating = nextgen::to_int(r1["proxy_rating"]);
+                proxy->state = nextgen::to_int(r1["state_id"]);
+                proxy->type = nextgen::to_int(r1["type_id"]);
+
+                // check the proxy against banlist
+                self.check_proxy(proxy);
+            });
+
+            start += amount;
+
+            if(list.size() < amount)
+            // we've hit the end of the proxy list, loop back around and check for changes
+            {
+                start = 0;
+                amount = list.size();
+            }
+
+            std::cout << "Loaded " << amount << " proxies." << std::endl;
+        };
     }
 
     nextgen::timer timer;
