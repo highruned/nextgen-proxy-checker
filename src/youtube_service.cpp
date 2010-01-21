@@ -27,8 +27,8 @@ void application::run(int argc, char* argv[])
 {
     auto self = *this;
 
-    self->main_database.connect("localhost", "root", "swoosh", "main");
-    self->proxy_database.connect("localhost", "root", "swoosh", "proxies");
+    self->main_database.connect("localhost", "user", "boom7441", "main");
+    self->proxy_database.connect("localhost", "user", "boom7441", "proxies");
 
     self->mail_server.accept(
     [=](nextgen::network::smtp_client c1)
