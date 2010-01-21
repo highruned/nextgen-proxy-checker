@@ -1,13 +1,9 @@
-#include "common.h"
+#include "nextgen/common.h"
+#include "nextgen/content.h"
+#include "nextgen/database.h"
 
 class application : public nextgen::singleton<application>
 {
-    public: void initialize()
-    {
-        auto self = *this;
-
-    }
-
     public: void run(int, char**);
 
     private: struct variables
@@ -17,23 +13,18 @@ class application : public nextgen::singleton<application>
 
         }
 
-        ~variables()
-        {
-
-        }
-
         nextgen::content::service content_service;
         nextgen::database::link proxy_database;
     };
 
-    NEXTGEN_SHARED_DATA(application, variables);
+    NEXTGEN_ATTACH_SHARED_VARIABLES(application, variables);
 };
 
 void application::run(int argc, char* argv[])
 {
     auto self = *this;
 
-    self->proxy_database.connect("localhost", "root", "swoosh", "proxies");
+    self->proxy_database.connect("localhost", "user", "boom7441", "proxies");
 
     if(argc > 1)
     {
@@ -61,9 +52,9 @@ void application::run(int argc, char* argv[])
                     boost::trim(host);
                     boost::trim(port);
 
-                    std::string query = "INSERT IGNORE INTO proxies SET proxy_host = \"" + host + "\", proxy_port = " + port + "";
+                    std::string q1 = "INSERT IGNORE INTO proxies SET proxy_host = \"" + host + "\", proxy_port = " + port + "";
 
-                    self->proxy_database.query(query);
+                    self->proxy_database.query(q1);
 
                     nextgen::sleep(0.01);
 
@@ -82,42 +73,20 @@ void application::run(int argc, char* argv[])
         }
         else if(command == "add_agents")
         {
-            auto agents = self->content_service.get_asset<nextgen::content::file_asset>("agents.txt");
+            auto agents_txt = self->content_service.get_asset<nextgen::content::file_asset>("agents.txt");
 
-            boost::regex_error paren(boost::regex_constants::error_paren);
+            auto agents = nextgen::preg_match_all("(.+?)\r\n", agents_txt->data);
 
-            try
+            std::for_each(agents.begin(), agents.end(), [=](std::string& agent)
             {
-                boost::match_results<std::string::const_iterator> what;
-                boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+                boost::trim(agent);
 
-                std::string::const_iterator start = agents->data.begin();
-                std::string::const_iterator end = agents->data.end();
+                std::string q1 = "INSERT IGNORE INTO agents SET agent_title = \"" + agent + "\"";
 
-                while(boost::regex_search(start, end, what, boost::regex("(.+?)\r\n"), flags))
-                {
-                    auto title = static_cast<std::string>(what[1]);
+                nextgen::sleep(0.01);
 
-                    boost::trim(title);
-
-                    std::string query = "INSERT IGNORE INTO agents SET agent_title = \"" + title + "\"";
-
-                    nextgen::sleep(0.01);
-
-                    self->proxy_database.query(query);
-
-                    // update search position:
-                    start = what[0].second;
-
-                    // update flags:
-                    flags |= boost::match_prev_avail;
-                    flags |= boost::match_not_bob;
-                }
-            }
-            catch(boost::regex_error const& e)
-            {
-                std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
-            }
+                self->proxy_database.query(q1);
+            });
         }
     }
 }

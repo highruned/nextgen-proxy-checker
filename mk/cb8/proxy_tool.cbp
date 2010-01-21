@@ -47,12 +47,11 @@
 			<Add option="-lpthread" />
 			<Add option="-ldl" />
 			<Add option="-lpq" />
-			<Add library="libstdc++-4.5.a" />
 			<Add library="libmysqlclient.a" />
 			<Add library="libboost_regex.a" />
 			<Add library="libboost_thread.a" />
-			<Add library="libcurl.a" />
 			<Add library="libboost_iostreams.a" />
+			<Add library="libboost_system.a" />
 			<Add library="libz.a" />
 		</Linker>
 		<Unit filename="../../src/common.h" />

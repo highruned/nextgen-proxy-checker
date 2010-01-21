@@ -1,5 +1,3 @@
-#define FD_SETSIZE 32768
-
 #include "proxy_checker.h"
 
 class application : public nextgen::singleton<application>

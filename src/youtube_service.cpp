@@ -45,7 +45,7 @@ void application::run(int argc, char* argv[])
             {
                 std::cout << "mail data: " << r1->content << std::endl;
 
-                std::string email = nextgen::regex_single_match("To: (.+?)\r\n", r1->content);
+                std::string email = nextgen::preg_match("To: (.+?)\r\n", r1->content);
 
                 if(email == nextgen::null_str)
                 {

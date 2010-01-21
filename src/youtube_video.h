@@ -112,8 +112,8 @@ namespace youtube
                         return;
                     }
 
-                    std::string token = nextgen::regex_single_match("\"t\"\\: \"(.+?)\"\\,", r1->content);
-                    std::string fmt = nextgen::regex_single_match("\\%2C([0-9]+)\\%7Chttp", r1->content);
+                    std::string token = nextgen::preg_match("\"t\"\\: \"(.+?)\"\\,", r1->content);
+                    std::string fmt = nextgen::preg_match("\\%2C([0-9]+)\\%7Chttp", r1->content);
 
                     if(token == nextgen::null_str
                     || fmt == nextgen::null_str)
@@ -230,13 +230,13 @@ namespace youtube
                     std::cout << "new_account response: " << std::endl;
 
 
-                    std::string ctoken = nextgen::regex_single_match("accounts/Captcha\\?ctoken=([^\"<>]+)\"", r1->content);
-                    std::string dsh = nextgen::regex_single_match("id=\"dsh\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
-                    std::string newaccounttoken = nextgen::regex_single_match("id=\"newaccounttoken\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
-                    std::string newaccounturl = nextgen::regex_single_match("id=\"newaccounturl\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
-                    std::string newaccounttoken_audio = nextgen::regex_single_match("id=\"newaccounttoken_audio\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
-                    std::string newaccounturl_audio = nextgen::regex_single_match("id=\"newaccounturl_audio\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
-                    std::string location = nextgen::regex_single_match("value=\"([^\"<>]+)\"[^<>]+selected", r1->content);
+                    std::string ctoken = nextgen::preg_match("accounts/Captcha\\?ctoken=([^\"<>]+)\"", r1->content);
+                    std::string dsh = nextgen::preg_match("id=\"dsh\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounttoken = nextgen::preg_match("id=\"newaccounttoken\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounturl = nextgen::preg_match("id=\"newaccounturl\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounttoken_audio = nextgen::preg_match("id=\"newaccounttoken_audio\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string newaccounturl_audio = nextgen::preg_match("id=\"newaccounturl_audio\"[^<>]+value=\"([^\"<>]+)\"", r1->content);
+                    std::string location = nextgen::preg_match("value=\"([^\"<>]+)\"[^<>]+selected", r1->content);
 
 std::ofstream f;
 f.open("google1.html", std::ios::out | std::ios::binary);
@@ -305,7 +305,7 @@ if(f.is_open())
                         {
                             a1->user->email.receive([=](std::string content)
                             {
-                                std::string c = nextgen::regex_single_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
+                                std::string c = nextgen::preg_match("accounts/VE\\?c\\=(.+?)\\&hl\\=en", content);
 
                                 if(c == nextgen::null_str)
                                 {

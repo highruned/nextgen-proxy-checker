@@ -43,13 +43,14 @@
 			<Add option="-lpthread" />
 			<Add option="-ldl" />
 			<Add option="-lpq" />
-			<Add library="libstdc++-4.5.a" />
+			<Add library="libstdc++.a" />
 			<Add library="libmysqlclient.a" />
+			<Add library="libboost_system.a" />
 			<Add library="libboost_thread.a" />
-			<Add library="libcurl.a" />
 			<Add library="libboost_iostreams.a" />
-			<Add library="libz.a" />
 			<Add library="libboost_regex.a" />
+			<Add library="libz.a" />
+			<Add directory="/usr/lib/gcc/i486-linux-gnu/4.5.0" />
 		</Linker>
 		<Unit filename="../../../nextgenengine/src/nextgen/common.h" />
 		<Unit filename="../../../nextgenengine/src/nextgen/content.h" />
